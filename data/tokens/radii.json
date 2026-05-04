@@ -1,0 +1,19 @@
+{
+  "$description": "StyleSeed - Border Radius Tokens",
+  "base": "0.625rem",
+  "scale": {
+    "sm": "calc(0.625rem - 4px)",
+    "md": "calc(0.625rem - 2px)",
+    "lg": "0.625rem",
+    "xl": "calc(0.625rem + 4px)",
+    "2xl": "1rem",
+    "full": "9999px"
+  },
+  "usage": {
+    "buttons-inputs": "rounded-md (8px)",
+    "cards": "rounded-2xl (16px)",
+    "badges": "rounded-lg (10px)",
+    "avatars": "rounded-full",
+    "icon-containers": "rounded-lg (10px)"
+  }
+}

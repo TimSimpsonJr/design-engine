@@ -1,0 +1,57 @@
+{
+  "$description": "StyleSeed - Typography Tokens",
+  "fontFamily": {
+    "sans": "'Inter', 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    "mono": "'JetBrains Mono', 'Fira Code', monospace"
+  },
+  "fontSize": {
+    "2xs": "10px",
+    "xs": "11px",
+    "sm": "12px",
+    "caption": "13px",
+    "base": "14px",
+    "body": "15px",
+    "md": "16px",
+    "subhead": "17px",
+    "lg": "18px",
+    "xl": "20px",
+    "2xl": "24px",
+    "3xl": "30px",
+    "4xl": "36px",
+    "5xl": "48px"
+  },
+  "fontWeight": {
+    "normal": 400,
+    "medium": 500,
+    "semibold": 600,
+    "bold": 700
+  },
+  "lineHeight": {
+    "none": 1.0,
+    "tight": 1.2,
+    "snug": 1.35,
+    "normal": 1.5,
+    "relaxed": 1.65
+  },
+  "lineHeightBySize": {
+    "$description": "Recommended line-height per font-size tier",
+    "display (36-48px)": "none (1.0) or tight (1.2) — large metrics, hero numbers",
+    "heading (18-24px)": "snug (1.35) — section titles",
+    "body (14-17px)": "normal (1.5) — readable paragraphs",
+    "caption (10-13px)": "normal (1.5) or relaxed (1.65) — small text needs more leading"
+  },
+  "letterSpacing": {
+    "tighter": "-0.02em",
+    "tight": "-0.01em",
+    "normal": "0em",
+    "wide": "0.05em",
+    "wider": "0.1em"
+  },
+  "letterSpacingBySize": {
+    "$description": "Recommended letter-spacing per font-size tier",
+    "display (36-48px)": "tighter (-0.02em) — large text looks better tightly spaced",
+    "heading (18-24px)": "tight (-0.01em)",
+    "body (14-17px)": "normal (0em)",
+    "caption-uppercase (10-13px)": "wide (0.05em) or wider (0.1em)"
+  }
+}

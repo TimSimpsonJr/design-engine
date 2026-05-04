@@ -1,0 +1,66 @@
+{
+  "$description": "StyleSeed - Color Tokens",
+  "brand": {
+    "primary": {
+      "value": "#721FE5",
+      "description": "Main brand accent color (purple)"
+    },
+    "dark": {
+      "value": "#030213",
+      "description": "Dark brand color, used as primary UI color"
+    }
+  },
+  "neutral": {
+    "50": "#FAFAF9",
+    "100": "#F4F1EC",
+    "200": "#E8E6E1",
+    "300": "#CBCED4",
+    "400": "#9B9B9B",
+    "500": "#7A7A7A",
+    "600": "#6A6A6A",
+    "700": "#3C3C3C",
+    "800": "#2A2A2A",
+    "900": "#030213"
+  },
+  "text": {
+    "primary": { "value": "#3C3C3C", "description": "Main headings, metric values" },
+    "secondary": { "value": "#6A6A6A", "description": "Labels, captions, descriptions" },
+    "tertiary": { "value": "#7A7A7A", "description": "Subtitles, axis labels, helper text" },
+    "disabled": { "value": "#9B9B9B", "description": "Inactive nav, disabled states" }
+  },
+  "surface": {
+    "page": { "value": "#FAFAFA", "description": "Page background (light gray)" },
+    "subtle": { "value": "#FAFAF9", "description": "List item, alt card background" },
+    "muted": { "value": "#E8E6E1", "description": "Progress bars, borders, inactive controls" },
+    "brand-tint": { "value": "#F0E8FF", "description": "Brand-tinted highlight (selected row)" }
+  },
+  "icon": {
+    "default": { "value": "#4A5568", "description": "Default icon color (blue-gray)" }
+  },
+  "alert": {
+    "badge": { "value": "#FF4444", "description": "Notification badge red" }
+  },
+  "semantic": {
+    "background": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "foreground": "#030213",
+    "muted": {
+      "bg": "#ECECF0",
+      "fg": "#717182"
+    },
+    "border": "rgba(0,0,0,0.1)",
+    "input-background": "#F3F3F5",
+    "switch-background": "#CBCED4",
+    "success": "#6B9B7A",
+    "destructive": "#D4183D",
+    "warning": "#D97706",
+    "info": "#3B82F6"
+  },
+  "chart": {
+    "1": "oklch(0.646 0.222 41.116)",
+    "2": "oklch(0.6 0.118 184.704)",
+    "3": "oklch(0.398 0.07 227.392)",
+    "4": "oklch(0.828 0.189 84.429)",
+    "5": "oklch(0.769 0.188 70.08)"
+  }
+}
