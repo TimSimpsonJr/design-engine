@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Design Engine Settings</title>
+  <link rel="stylesheet" href="./styles/theme.css">
+  <style>
+    body { font-family: var(--font-primary, Inter), system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 24px; }
+    .card { background: var(--card); border-radius: 16px; padding: 24px; box-shadow: var(--shadow-card); margin-bottom: 24px; }
+    .label { width: 130px; font-family: monospace; }
+    .row { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+    pre { background: #FAFAFA; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+    button { padding: 8px 16px; border-radius: 8px; cursor: pointer; }
+    button.primary { background: var(--brand); color: white; border: none; }
+    button.outline { background: transparent; border: 1px solid #E8E6E1; }
+    h1 { font-size: 24px; }
+    h2 { font-size: 18px; }
+    .text-input { font-family: monospace; padding: 6px; border: 1px solid #E8E6E1; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>Design Engine Settings</h1>
+  <p>Tweak design tokens. Edits produce a copyable CSS snippet — paste into your theme.css to apply.</p>
+
+  <div class="card">
+    <h2>Colors</h2>
+    <div id="color-controls"></div>
+  </div>
+
+  <div class="card">
+    <h2>Live Preview</h2>
+    <div id="preview" style="padding: 16px; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+      <p style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">SAMPLE CARD</p>
+      <p style="font-size: 36px; font-weight: 700; margin: 8px 0;">$48.2<span style="font-size: 18px;">K</span></p>
+      <p id="trend" style="font-size: 13px; font-weight: 700; color: #6B9B7A;">+8.2% vs last month</p>
+      <button id="cta" class="primary" style="margin-top: 16px;">Primary Action</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Generated CSS</h2>
+    <pre id="css-output"></pre>
+    <button id="copy-btn" class="primary">Copy CSS</button>
+    <button id="download-btn" class="outline">Download theme.css</button>
+  </div>
+
+  <script>
+    const tokens = {
+      brand: '#721FE5',
+      primary: '#030213',
+      background: '#FAFAFA',
+      card: '#FFFFFF',
+      foreground: '#2A2A2A',
+      destructive: '#d4183d',
+      success: '#6B9B7A',
+      warning: '#D97706',
+      info: '#3B82F6',
+    };
+
+    function generateCss() {
+      return ':root {\n' + Object.entries(tokens).map(([k, v]) => '  --' + k + ': ' + v + ';').join('\n') + '\n}';
+    }
+
+    function update() {
+      document.getElementById('css-output').textContent = generateCss();
+      document.getElementById('cta').style.background = tokens.brand;
+    }
+
+    // Build controls using safe DOM methods (avoid innerHTML)
+    const controls = document.getElementById('color-controls');
+    for (const [key, value] of Object.entries(tokens)) {
+      const row = document.createElement('div');
+      row.className = 'row';
+
+      const label = document.createElement('label');
+      label.className = 'label';
+      label.textContent = '--' + key;
+
+      const colorInput = document.createElement('input');
+      colorInput.type = 'color';
+      colorInput.value = value;
+      colorInput.dataset.key = key;
+
+      const textInput = document.createElement('input');
+      textInput.type = 'text';
+      textInput.value = value;
+      textInput.dataset.key = key;
+      textInput.className = 'text-input';
+
+      row.appendChild(label);
+      row.appendChild(colorInput);
+      row.appendChild(textInput);
+      controls.appendChild(row);
+    }
+
+    controls.addEventListener('input', (e) => {
+      const key = e.target.dataset.key;
+      if (!key) return;
+      tokens[key] = e.target.value;
+      controls.querySelectorAll('[data-key="' + key + '"]').forEach(el => {
+        if (el !== e.target) el.value = e.target.value;
+      });
+      update();
+    });
+
+    document.getElementById('copy-btn').addEventListener('click', () => {
+      navigator.clipboard.writeText(generateCss());
+      alert('CSS copied — paste into your theme.css :root block.');
+    });
+
+    document.getElementById('download-btn').addEventListener('click', () => {
+      const blob = new Blob([generateCss()], { type: 'text/css' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'theme.css';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    update();
+  </script>
+</body>
+</html>
