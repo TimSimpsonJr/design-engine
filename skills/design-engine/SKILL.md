@@ -37,7 +37,7 @@ Modify in `:root` of `src/styles/theme.css`:
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
-| `--brand` | Brand accent color | Defined by skin (e.g. `#721FE5` for toss) |
+| `--brand` | Brand accent color | Defined by skin (e.g. `#721FE5` for Toss) |
 | `--primary` | Buttons, links, primary UI | `#030213` |
 | `--destructive` | Error/danger | `#d4183d` |
 | `--success` | Success indicator | `#6B9B7A` |
@@ -75,7 +75,7 @@ Other semantic tokens (`--background`, `--foreground`, `--muted`, etc.) typicall
 | 36-48px (display) | 1.0 | `leading-none` | Large numbers stay tight |
 | 18-24px (heading) | 1.35 | `leading-snug` | Headings slightly tighter |
 | 14-17px (body) | 1.5 | `leading-normal` | Readability |
-| 10-13px (caption) | 1.5~1.65 | `leading-normal`~`leading-relaxed` | Small text needs more space |
+| 10-13px (caption) | 1.5–1.65 | `leading-normal`–`leading-relaxed` | Small text needs more space |
 
 #### Letter Spacing Rules (by size)
 | Text Size | Tracking | Value | Reason |
@@ -100,7 +100,7 @@ Other semantic tokens (`--background`, `--foreground`, `--muted`, etc.) typicall
 | **Section title** | — | — | `text-[18px] font-bold` | `<h3 class="text-[18px] font-bold">Recent Activity</h3>` |
 | **List item name** | — | — | `text-[14px] font-bold` | `<p class="text-[14px] font-bold">Acme Corp</p>` |
 | **List item amount** | `text-[17px]` | `text-[11px]` | — | `<span class="text-[17px] font-bold">$8,400</span>` |
-| **Chart stat footer** | `text-[18px]` | `text-[10px]` | `text-[11px] uppercase` | — |
+| **Chart stat footer** | `text-[18px]` | `text-[10px]` | `text-[11px] uppercase` | `<span class="text-[18px] font-bold">42<span class="text-[10px]">ms</span></span>` |
 | **Trend %** | `text-[13px]` | — | — | `<span class="text-[13px] text-success font-bold">+8.2%</span>` |
 | **Subtitle/date** | — | — | `text-[13px] text-text-tertiary` | `<p class="text-[13px] text-text-tertiary">April 7, 2026</p>` |
 | **Status dot text** | — | — | `text-[11px] font-bold` | `<span class="text-[11px] font-bold" style="color: #22C55E">Completed</span>` |
@@ -204,36 +204,38 @@ For components not included in the seed, check shadcn/ui registry for additional
 
 ## Color Usage Cheatsheet
 
+All values below are defined by the active skin.
+
 ### Text Hierarchy
-| Usage | Tailwind Class | Note |
-|-------|---------------|------|
-| Metrics/titles | `text-text-primary` | Defined by skin |
-| Labels/captions | `text-text-secondary` | Defined by skin |
-| Subtitles/axis labels | `text-text-tertiary` | Defined by skin |
-| Inactive/disabled | `text-text-disabled` | Defined by skin |
-| Default icons | `text-icon-default` | Defined by skin |
+| Usage | Tailwind Class |
+|-------|---------------|
+| Metrics/titles | `text-text-primary` |
+| Labels/captions | `text-text-secondary` |
+| Subtitles/axis labels | `text-text-tertiary` |
+| Inactive/disabled | `text-text-disabled` |
+| Default icons | `text-icon-default` |
 
 ### Backgrounds/Surfaces
-| Usage | Tailwind Class | Note |
-|-------|---------------|------|
-| Page background | `bg-surface-page` | Defined by skin |
-| List items | `bg-surface-subtle` | Defined by skin |
-| Progress bars/borders | `bg-surface-muted` | Defined by skin |
-| Brand tint (selected row) | `bg-brand-tint` | Defined by skin |
-| Card background | `bg-card` | Defined by skin |
-| Pure background | `bg-background` | Defined by skin |
+| Usage | Tailwind Class |
+|-------|---------------|
+| Page background | `bg-surface-page` |
+| List items | `bg-surface-subtle` |
+| Progress bars/borders | `bg-surface-muted` |
+| Brand tint (selected row) | `bg-brand-tint` |
+| Card background | `bg-card` |
+| Pure background | `bg-background` |
 
 ### UI Colors
-| Usage | Tailwind Class | Note |
-|-------|---------------|------|
-| Brand accent | `text-brand` / `bg-brand` | Defined by skin |
-| Primary button | `bg-primary` | Defined by skin |
-| Success/up | `text-success` | Defined by skin |
-| Error/danger | `text-destructive` | Defined by skin |
-| Warning | `text-warning` | Defined by skin |
-| Info | `text-info` | Defined by skin |
-| Alert badge | `bg-alert-badge` | Defined by skin |
-| Border | `border-border` | Defined by skin |
+| Usage | Tailwind Class |
+|-------|---------------|
+| Brand accent | `text-brand` / `bg-brand` |
+| Primary button | `bg-primary` |
+| Success/up | `text-success` |
+| Error/danger | `text-destructive` |
+| Warning | `text-warning` |
+| Info | `text-info` |
+| Alert badge | `bg-alert-badge` |
+| Border | `border-border` |
 
 ## Pattern Components
 
@@ -528,29 +530,32 @@ For notch/Dynamic Island support on mobile:
 - Use `pb-safe`, `pt-safe`, `px-safe` classes (base.css)
 - `viewport-fit=cover` is already set in `index.html`
 
-## Prohibited Practices
+## Practices & Prohibitions
 
+**Prohibitions:**
 - Do not use inline hex for colors that have semantic tokens
 - Do not create wrapper components that only add className (use `cn()` at the call site)
 - Do not use `@mui/material` (use Radix UI instead)
 - Avoid px values in Tailwind for **spacing** (`p-6` OK, `p-[24px]` not OK)
-- **Font sizes: USE `text-[Npx]` directly** — do NOT create CSS variables for font sizes (`--text-sm`, `--fs-body` etc.) — they conflict with Tailwind v4's `--text-*` namespace and break line-height, icon sizing, and spacing
+- Font sizes: do not create CSS variables — see "Font Size Anti-Pattern" above.
 - Do not omit `data-slot` attribute on new components
+- Do not change `--font-size` in theme.css without checking all spacing — rem-based layouts depend on it
+
+**Prescriptions:**
 - Use `size-4` instead of `w-4 h-4` (Tailwind v4 shorthand)
 - Use `ms-*` instead of `ml-*` (logical properties, RTL support)
-- Do not change `--font-size` in theme.css without checking all spacing — rem-based layouts depend on it
 
 ## Token Source Files (framework-agnostic)
 
 The token JSON files ship in the design-engine plugin at `data/tokens/`. Adapter-specific implementations of these tokens (CSS variables, Tailwind theme directives, etc.) are written by `/design-init` to the user's project.
 
 JSON token files are used as the source for extending to other platforms like native apps or Figma variable generation:
-- `tokens/colors.json`
-- `tokens/typography.json`
-- `tokens/spacing.json`
-- `tokens/radii.json`
-- `tokens/shadows.json`
-- `tokens/motion.json`
+- `data/tokens/colors.json`
+- `data/tokens/typography.json`
+- `data/tokens/spacing.json`
+- `data/tokens/radii.json`
+- `data/tokens/shadows.json`
+- `data/tokens/motion.json`
 
 ## Slash commands available
 
