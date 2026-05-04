@@ -1,0 +1,12 @@
+{
+  "name": "social",
+  "version": 1,
+  "sections": [
+    { "type": "hero-card", "props": { "metric": "followers", "trend": true, "showAvatar": true } },
+    { "type": "kpi-grid", "props": { "columns": 4, "items": ["posts", "likes", "comments", "shares"] } },
+    { "type": "feed-section", "props": { "title": "Your Feed", "maxItems": 4 } },
+    { "type": "briefing-carousel", "props": { "title": "Trending" } },
+    { "type": "ranked-list", "props": { "title": "Top Engagers", "maxItems": 4 } },
+    { "type": "list-section", "props": { "title": "Recent Activity", "maxItems": 4, "statusVariants": ["mention", "like", "follow"] } }
+  ]
+}

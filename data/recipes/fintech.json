@@ -1,0 +1,12 @@
+{
+  "name": "fintech",
+  "version": 1,
+  "sections": [
+    { "type": "hero-card", "props": { "metric": "total-balance", "trend": true } },
+    { "type": "kpi-grid", "props": { "columns": 4, "items": ["income", "expenses", "savings-rate", "investments"] } },
+    { "type": "donut-chart-card", "props": { "title": "Asset Allocation" } },
+    { "type": "chart-card", "props": { "title": "Balance Trend", "chartType": "area", "periods": ["1W", "1M", "3M"] } },
+    { "type": "list-section", "props": { "title": "Recent Transactions", "maxItems": 4, "showAmount": true, "showStatus": true } },
+    { "type": "briefing-carousel", "props": { "title": "Financial Tips & Alerts" } }
+  ]
+}

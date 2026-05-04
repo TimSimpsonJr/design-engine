@@ -1,0 +1,12 @@
+{
+  "name": "saas",
+  "version": 1,
+  "sections": [
+    { "type": "hero-card", "props": { "metric": "primary-revenue", "trend": true } },
+    { "type": "kpi-grid", "props": { "columns": 4, "items": ["mrr", "active-users", "churn", "conversion"] } },
+    { "type": "chart-card", "props": { "title": "Revenue Trend", "chartType": "area", "periods": ["1W", "1M", "3M"] } },
+    { "type": "briefing-carousel", "props": { "title": "AI Insights" } },
+    { "type": "progress-section", "props": { "title": "Usage Breakdown", "items": 3 } },
+    { "type": "list-section", "props": { "title": "Recent Activity", "maxItems": 4 } }
+  ]
+}

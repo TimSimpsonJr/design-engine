@@ -1,0 +1,12 @@
+{
+  "name": "ecommerce",
+  "version": 1,
+  "sections": [
+    { "type": "hero-card", "props": { "metric": "todays-sales", "trend": true } },
+    { "type": "kpi-grid", "props": { "columns": 4, "items": ["orders", "aov", "returns", "conversion"] } },
+    { "type": "donut-chart-card", "props": { "title": "Sales by Category" } },
+    { "type": "chart-card", "props": { "title": "Weekly Sales Trend", "chartType": "bar", "periods": ["1W", "1M", "3M"] } },
+    { "type": "briefing-carousel", "props": { "title": "Top Products" } },
+    { "type": "list-section", "props": { "title": "Recent Orders", "maxItems": 4, "statusVariants": ["shipped", "pending", "delivered"] } }
+  ]
+}

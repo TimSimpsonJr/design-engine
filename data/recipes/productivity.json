@@ -1,0 +1,12 @@
+{
+  "name": "productivity",
+  "version": 1,
+  "sections": [
+    { "type": "hero-card", "props": { "metric": "tasks-completed-today", "trend": true, "showProgress": true } },
+    { "type": "kpi-grid", "props": { "columns": 4, "items": ["today", "this-week", "completed", "overdue"] } },
+    { "type": "chart-card", "props": { "title": "Focus Time", "chartType": "area", "periods": ["1D", "1W", "1M"] } },
+    { "type": "progress-section", "props": { "title": "Goal Progress", "items": 3 } },
+    { "type": "briefing-carousel", "props": { "title": "Daily Briefings" } },
+    { "type": "list-section", "props": { "title": "Today's Tasks", "maxItems": 4, "statusVariants": ["in-progress", "blocked", "todo", "done"] } }
+  ]
+}
