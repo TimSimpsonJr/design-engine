@@ -1,0 +1,15 @@
+{
+  "name": "design-engine",
+  "description": "Stack-agnostic design system toolkit. Ports bitjaru/styleseed (MIT) into a Claude Code plugin with skills, commands, audit agents, and adapters for React+shadcn, Astro, SvelteKit, Obsidian, and plain CSS.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Tim Simpson"
+  },
+  "license": "MIT",
+  "keywords": ["design-system", "ui", "tokens", "audit", "tailwind", "shadcn", "obsidian", "astro", "sveltekit"],
+  "credits": {
+    "inspiredBy": "https://github.com/bitjaru/styleseed",
+    "designMdFormat": "https://stitch.withgoogle.com/docs/design-md/overview/",
+    "skinCatalog": "https://github.com/VoltAgent/awesome-design-md"
+  }
+}
