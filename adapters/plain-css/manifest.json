@@ -1,0 +1,14 @@
+{
+  "name": "plain-css",
+  "extends": null,
+  "theme": { "targetPath": "./styles/" },
+  "components": { "targetPath": null },
+  "scaffold": { "available": false, "entry": null },
+  "templates": {
+    "page": "templates/page.html",
+    "component": null,
+    "pattern": null
+  },
+  "settingsPage": { "writeCapable": false, "devGate": null, "routePath": null },
+  "cursorRules": true
+}

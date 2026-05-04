@@ -1,0 +1,91 @@
+/* design-engine theme — vanilla CSS variables
+ * Adapted from styleseed (MIT) — see /LICENSE for attribution.
+ *
+ * Drop-in for any HTML/CSS project. No build step required.
+ */
+
+:root {
+  /* Brand */
+  --brand: #721FE5;
+
+  /* Semantic colors */
+  --primary: #030213;
+  --destructive: #d4183d;
+  --success: #6B9B7A;
+  --warning: #D97706;
+  --info: #3B82F6;
+
+  /* Backgrounds & surfaces */
+  --background: #FAFAFA;
+  --card: #FFFFFF;
+  --surface-subtle: #FAFAF9;
+  --surface-muted: #E8E6E1;
+  --brand-tint: #F0E8FF;
+
+  /* Text hierarchy (NEVER pure black — see design-engine rule 3) */
+  --foreground: #2A2A2A;
+  --text-secondary: #6A6A6A;
+  --text-tertiary: #7A7A7A;
+  --text-disabled: #9B9B9B;
+
+  /* Borders */
+  --border: #E8E6E1;
+
+  /* Typography */
+  --font-primary: Inter, system-ui, sans-serif;
+  --font-mono: 'DM Mono', monospace;
+  --font-size: 16px;
+
+  /* Spacing — 6px multiples */
+  --space-1: 6px;
+  --space-2: 12px;
+  --space-3: 18px;
+  --space-4: 24px;
+
+  /* Border radius */
+  --radius: 10px;
+  --radius-card: 16px;
+
+  /* Shadows — keep subtle (rule 12: ≤ 8% opacity) */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-modal: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* Motion */
+  --duration-fast: 100ms;
+  --duration-normal: 200ms;
+  --duration-slow: 350ms;
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.dark {
+  --brand: #9B5FFF;
+  --primary: #F8FAFC;
+  --background: #0A0E1A;
+  --card: #141826;
+  --foreground: #E8E6E1;
+  --text-secondary: #A1A1AA;
+  --text-tertiary: #71717A;
+  --text-disabled: #52525B;
+  --border: #27272A;
+  /* All other tokens inherit */
+}
+
+/* Base utilities */
+body {
+  font-family: var(--font-primary);
+  font-size: var(--font-size);
+  background: var(--background);
+  color: var(--foreground);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
