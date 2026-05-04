@@ -1,0 +1,20 @@
+design-engine plugin
+Copyright (c) 2026 Tim Simpson
+
+This product adapts content from:
+
+- bitjaru/styleseed (MIT)
+  Copyright (c) bitjaru
+  https://github.com/bitjaru/styleseed
+  Adapted: design rules from CLAUDE.md and DESIGN-LANGUAGE.md, component
+  library (.tsx files) in adapters/react-shadcn/, reference skins in
+  data/skins/, the workflow patterns in commands/.
+
+- Google Stitch — DESIGN.md format
+  https://stitch.withgoogle.com/docs/design-md/overview/
+
+This product fetches data from:
+
+- VoltAgent/awesome-design-md
+  https://github.com/VoltAgent/awesome-design-md
+  Used by /design-skin command for fetch-on-demand brand palettes.
