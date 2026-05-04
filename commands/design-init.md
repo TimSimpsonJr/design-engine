@@ -134,7 +134,7 @@ For option 6: trigger the 4-source lookup (the same lookup `/design-skin` uses):
 1. Project cache: `.design-rules/skins/<name>.json`
 2. User cache: `~/.design-rules/skins/<name>.json`
 3. Plugin bundled: `${CLAUDE_PLUGIN_ROOT}/data/skins/<name>.json`
-4. Remote fetch: `https://raw.githubusercontent.com/VoltAgent/awesome-design-md/main/<name>.md` (use WebFetch, parse the design-md format into a skin.json)
+4. Remote fetch: `https://raw.githubusercontent.com/VoltAgent/awesome-design-md/main/design-md/<name>/DESIGN.md` (use WebFetch, parse the design-md format into a skin.json)
 
 If the remote fetch is used, you MUST cache the result to `.design-rules/skins/<name>.json` in Step 7.
 
