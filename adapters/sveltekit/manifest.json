@@ -7,10 +7,11 @@
   "templates": {
     "page": "templates/+page.svelte",
     "component": "templates/component.svelte",
-    "pattern": "templates/component.svelte"
+    "pattern": "templates/component.svelte",
+    "settingsPage": "templates/settings-page.svelte"
   },
   "settingsPage": {
-    "writeCapable": true,
+    "writeCapable": "snippet",
     "devGate": "import.meta.env.DEV",
     "routePath": "/__design"
   },

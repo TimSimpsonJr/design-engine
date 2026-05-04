@@ -7,8 +7,9 @@
   "templates": {
     "page": "templates/page.html",
     "component": null,
-    "pattern": null
+    "pattern": null,
+    "settingsPage": "templates/settings-page.html"
   },
-  "settingsPage": { "writeCapable": false, "devGate": null, "routePath": null },
+  "settingsPage": { "writeCapable": "snippet", "devGate": null, "routePath": "design-settings.html" },
   "cursorRules": true
 }

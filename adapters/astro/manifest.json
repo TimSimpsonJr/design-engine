@@ -7,10 +7,11 @@
   "templates": {
     "page": "templates/page.astro",
     "component": "templates/component.astro",
-    "pattern": "templates/component.astro"
+    "pattern": "templates/component.astro",
+    "settingsPage": "templates/settings-page.astro"
   },
   "settingsPage": {
-    "writeCapable": true,
+    "writeCapable": "snippet",
     "devGate": "import.meta.env.DEV",
     "routePath": "/__design"
   },

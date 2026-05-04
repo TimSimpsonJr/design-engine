@@ -7,10 +7,11 @@
   "templates": {
     "page": "templates/page.tsx",
     "component": "templates/component.tsx",
-    "pattern": "templates/pattern.tsx"
+    "pattern": "templates/pattern.tsx",
+    "settingsPage": "templates/settings-page.tsx"
   },
   "settingsPage": {
-    "writeCapable": true,
+    "writeCapable": "snippet",
     "devGate": "import.meta.env.DEV",
     "routePath": "/__design"
   },
