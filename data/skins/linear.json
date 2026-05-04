@@ -1,0 +1,38 @@
+{
+  "name": "linear",
+  "version": 1,
+  "source": "bundled",
+  "colors": {
+    "light": {
+      "brand": "#5e6ad2",
+      "primary": "#171717",
+      "destructive": "#d4183d",
+      "success": "#27a644",
+      "warning": "#D97706",
+      "info": "#5e6ad2",
+      "background": "#ffffff",
+      "card": "#ffffff",
+      "foreground": "#171717",
+      "text-secondary": "#5c5f66",
+      "text-tertiary": "#8a8f98",
+      "text-disabled": "#b0b4ba",
+      "border": "#d0d6e0"
+    },
+    "dark": {
+      "brand": "#7170ff",
+      "primary": "#f7f8f8",
+      "destructive": "#ff5c5c",
+      "success": "#10b981",
+      "warning": "#fbbf24",
+      "info": "#828fff",
+      "background": "#08090a",
+      "card": "#0f1011",
+      "foreground": "#f7f8f8",
+      "text-secondary": "#d0d6e0",
+      "text-tertiary": "#8a8f98",
+      "text-disabled": "#62666d",
+      "border": "#27272A"
+    }
+  },
+  "fonts": { "primary": "Inter", "mono": "DM Mono" }
+}

@@ -1,0 +1,38 @@
+{
+  "name": "vercel",
+  "version": 1,
+  "source": "bundled",
+  "colors": {
+    "light": {
+      "brand": "#171717",
+      "primary": "#171717",
+      "destructive": "#ff5b4f",
+      "success": "#0a72ef",
+      "warning": "#D97706",
+      "info": "#0072f5",
+      "background": "#ffffff",
+      "card": "#ffffff",
+      "foreground": "#171717",
+      "text-secondary": "#4d4d4d",
+      "text-tertiary": "#666666",
+      "text-disabled": "#808080",
+      "border": "#ebebeb"
+    },
+    "dark": {
+      "brand": "#ffffff",
+      "primary": "#ededed",
+      "destructive": "#ff6b61",
+      "success": "#3b8ff0",
+      "warning": "#fbbf24",
+      "info": "#3b8ff0",
+      "background": "#0a0a0a",
+      "card": "#141414",
+      "foreground": "#ededed",
+      "text-secondary": "#a0a0a0",
+      "text-tertiary": "#777777",
+      "text-disabled": "#555555",
+      "border": "#27272A"
+    }
+  },
+  "fonts": { "primary": "Inter", "mono": "DM Mono" }
+}

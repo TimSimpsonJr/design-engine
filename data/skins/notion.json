@@ -1,0 +1,38 @@
+{
+  "name": "notion",
+  "version": 1,
+  "source": "bundled",
+  "colors": {
+    "light": {
+      "brand": "#0075de",
+      "primary": "#2A2A2A",
+      "destructive": "#dd5b00",
+      "success": "#2a9d99",
+      "warning": "#dd5b00",
+      "info": "#0075de",
+      "background": "#ffffff",
+      "card": "#ffffff",
+      "foreground": "#2A2A2A",
+      "text-secondary": "#615d59",
+      "text-tertiary": "#a39e98",
+      "text-disabled": "#c4c0bb",
+      "border": "#E8E6E1"
+    },
+    "dark": {
+      "brand": "#62aef0",
+      "primary": "#e0dfde",
+      "destructive": "#ff8c4c",
+      "success": "#4ec9c5",
+      "warning": "#ffb347",
+      "info": "#62aef0",
+      "background": "#191919",
+      "card": "#252422",
+      "foreground": "#e0dfde",
+      "text-secondary": "#a39e98",
+      "text-tertiary": "#7a7672",
+      "text-disabled": "#555250",
+      "border": "#27272A"
+    }
+  },
+  "fonts": { "primary": "Inter", "mono": "DM Mono" }
+}
