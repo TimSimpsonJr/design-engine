@@ -1,0 +1,18 @@
+{
+  "name": "sveltekit",
+  "extends": "tailwind-v4",
+  "theme": { "targetPath": "src/lib/styles/" },
+  "components": { "targetPath": "src/lib/components/" },
+  "scaffold": { "available": false, "entry": null },
+  "templates": {
+    "page": "templates/+page.svelte",
+    "component": "templates/component.svelte",
+    "pattern": "templates/component.svelte"
+  },
+  "settingsPage": {
+    "writeCapable": true,
+    "devGate": "import.meta.env.DEV",
+    "routePath": "/__design"
+  },
+  "cursorRules": true
+}
