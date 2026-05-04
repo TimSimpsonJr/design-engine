@@ -1,0 +1,19 @@
+{
+  "name": "obsidian-css",
+  "extends": null,
+  "theme": { "targetPath": "./" },
+  "components": { "targetPath": null },
+  "scaffold": { "available": false, "entry": null },
+  "templates": {
+    "page": null,
+    "component": null,
+    "pattern": null,
+    "settingsTab": "templates/settings-tab.ts"
+  },
+  "settingsPage": {
+    "writeCapable": true,
+    "devGate": null,
+    "routePath": "settings-tab"
+  },
+  "cursorRules": false
+}

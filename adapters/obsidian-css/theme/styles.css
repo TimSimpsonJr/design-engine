@@ -1,0 +1,67 @@
+/* design-engine theme for Obsidian plugins
+ * Adapted from styleseed (MIT) — see /LICENSE for attribution.
+ *
+ * Maps styleseed semantic tokens to Obsidian native theme variables
+ * so plugin UI inherits the user's Obsidian theme while still applying
+ * design-engine layout/typography/spacing rules.
+ */
+
+/* Plugin-specific CSS layered on top of Obsidian's theme */
+.design-engine {
+  /* Reference Obsidian's variables for colors */
+  --de-brand: var(--interactive-accent);
+  --de-brand-hover: var(--interactive-accent-hover);
+  --de-background: var(--background-primary);
+  --de-card: var(--background-secondary);
+  --de-foreground: var(--text-normal);
+  --de-text-secondary: var(--text-muted);
+  --de-text-tertiary: var(--text-faint);
+  --de-border: var(--background-modifier-border);
+  --de-success: var(--color-green);
+  --de-warning: var(--color-orange);
+  --de-destructive: var(--color-red);
+  --de-info: var(--color-blue);
+
+  /* Spacing — design-engine 6px multiples */
+  --de-space-1: 6px;
+  --de-space-2: 12px;
+  --de-space-3: 18px;
+  --de-space-4: 24px;
+
+  /* Border radius (matches Obsidian convention) */
+  --de-radius: var(--radius-m);
+  --de-radius-card: var(--radius-l);
+
+  /* Shadows — subtle */
+  --de-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --de-shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Card primitive */
+.design-engine-card {
+  background: var(--de-card);
+  border-radius: var(--de-radius-card);
+  padding: var(--de-space-4);
+  box-shadow: var(--de-shadow-card);
+}
+.design-engine-card:hover {
+  box-shadow: var(--de-shadow-card-hover);
+}
+
+/* Section container — mx-6 equivalent */
+.design-engine-section {
+  margin-left: var(--de-space-4);
+  margin-right: var(--de-space-4);
+  margin-bottom: var(--de-space-4);
+}
+
+/* Touch target compliance */
+.design-engine-touchable {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Status text patterns */
+.design-engine-status-success { color: var(--de-success); font-weight: 700; }
+.design-engine-status-warning { color: var(--de-warning); font-weight: 700; }
+.design-engine-status-destructive { color: var(--de-destructive); font-weight: 700; }
