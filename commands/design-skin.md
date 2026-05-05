@@ -90,15 +90,69 @@ If the skin contains tokens not present in theme.css, append them. If theme.css 
 
 ### 1f. Apply fonts
 
-Read `<targetPath>/fonts.css`. Replace the `@import url(...)` lines with the imports for `skin.fonts.primary` (and `skin.fonts.mono` if present).
+This step has two parts: update `--font-primary` in `theme.css`, then rewrite the managed `@import` block in `fonts.css`.
 
-Font import URL templates:
-- Google Fonts (default): `https://fonts.googleapis.com/css2?family=<URL-encoded-name>:wght@400;500;600;700&display=swap`
-- If `skin.fonts.importUrl` is explicitly set, use that instead (allows custom CDN imports)
+#### 1f-i. Update `--font-primary` in `theme.css`
 
-Update the `body { font-family: ... }` line to lead with the new primary font, falling back to whatever's already there.
+Inside the `:root { ... }` block, find the `--font-primary: ...;` line and replace its value with:
 
-Update `--font-sans` (or equivalent) in `theme.css` to reference the new font family if such a token exists.
+```
+'<skin.fonts.primary>', system-ui, -apple-system, BlinkMacSystemFont, sans-serif
+```
+
+Use single quotes around the font name only if it contains characters outside `[a-zA-Z0-9-]` (so `Geist` stays unquoted, but `'SF Pro Display'` and `'IBM Plex Sans'` are quoted).
+
+If the line doesn't exist, append `--font-primary: <value>;` inside the `:root` block (under `/* === Typography === */` if that comment exists; otherwise at the end).
+
+Do NOT modify the `body { font-family: ... }` rule in `fonts.css`. Since the Phase A fixes, that rule reads `var(--font-primary)` — updating the variable in `theme.css` is sufficient.
+
+There is no `--font-mono` token in the standard theme. The mono font (if any) is handled solely by the `fonts.css` `@import` block in the next step; consumers reference it via Tailwind's `font-mono` utility resolved from the imported family.
+
+#### 1f-ii. Rewrite the managed `@import` block in `fonts.css`
+
+If `<targetPath>/fonts.css` does not exist (e.g., the `obsidian-css` adapter has no `fonts.css`), skip this step entirely — `--font-primary` is already updated, which is all that adapter needs.
+
+Otherwise, read `${CLAUDE_PLUGIN_ROOT}/data/font-sources.json`. This maps font family names to source descriptors of shape:
+
+```json
+{ "Geist": { "type": "google", "weights": [400, 500, 600, 700, 800] },
+  "SF Pro Display": { "type": "system" },
+  "Toss Product Sans": { "type": "proprietary" } }
+```
+
+Locate the managed block in `fonts.css`, delimited by:
+
+```
+/* design-engine: managed-font-imports:start */
+... existing @import lines ...
+/* design-engine: managed-font-imports:end */
+```
+
+Build the new block contents. For each of `skin.fonts.primary` and (if set) `skin.fonts.mono`, in that order:
+
+1. **If `skin.fonts.importUrl` is explicitly set on the skin** (rare; only when the skin overrides the lookup), use it verbatim as the `@import` URL.
+2. **Else look up the font name in `font-sources.json`:**
+   - `type: "google"` → build the URL:
+     - URL-encode the family by replacing spaces with `+` (e.g., `Plus Jakarta Sans` → `Plus+Jakarta+Sans`).
+     - Join the `weights` array with `;` (e.g., `[400, 500, 600, 700, 800]` → `400;500;600;700;800`).
+     - Final URL: `https://fonts.googleapis.com/css2?family=<encoded-name>:wght@<weights>&display=swap`.
+     - Add a line: `@import url('<URL>');`
+   - `type: "system"` → no `@import`. Browser uses the local font via `--font-primary`'s fallback chain.
+   - `type: "proprietary"` → no `@import`. Same fallback behavior; user is expected to host the font themselves if they want it loaded.
+3. **If no entry exists in `font-sources.json`** (unknown font): no `@import`. Print a one-line warning to the user: `Font '<name>' not in data/font-sources.json — no @import added. Add an entry there if it should be auto-loaded.`
+
+Replace the contents between the start/end markers with the new lines (one `@import` per line). The markers themselves stay in place. If no `@import` lines apply (e.g., Stripe = `SF Pro Display` system + `JetBrains Mono` google → only the mono line), write only the lines that apply. If neither font applies, the block is empty: just the two marker comments back-to-back with a newline between.
+
+If the markers are not present in `fonts.css` (older project scaffolded before Phase A), prepend a fresh managed block at the very top of the file:
+
+```
+/* design-engine: managed-font-imports:start */
+<lines>
+/* design-engine: managed-font-imports:end */
+
+```
+
+Use Edit (not Write) so any user-managed `@import` rules below the block, the `body { font-family }` rule, and other content are preserved verbatim.
 
 ### 1g. Update marker
 
@@ -106,17 +160,22 @@ Edit `.design-rules/config.json`: set `skin` to `<name>`. Preserve all other fie
 
 ### 1h. Confirm
 
-Print a summary:
+Print a summary. The font line should reflect what 1f-ii actually did — append one of:
+- `(Google Fonts @import added)` for `type: "google"`
+- `(system font, no @import)` for `type: "system"`
+- `(proprietary font, no @import — host it yourself)` for `type: "proprietary"`
+- `(unknown font, no @import — add to data/font-sources.json)` if the font wasn't in the lookup
+- `(skipped — adapter has no fonts.css)` if 1f-ii was skipped (obsidian-css)
 
 ```
 Applied skin `<name>` (resolved from <source>).
   Colors: <count-light> light tokens, <count-dark> dark tokens
-  Primary font: <name>
-  Mono font: <name or 'unchanged'>
+  Primary font: <name> <suffix per above>
+  Mono font: <name or 'unchanged'> <suffix per above>
 
 Modified:
 - <targetPath>/theme.css
-- <targetPath>/fonts.css
+<- <targetPath>/fonts.css (omit if 1f-ii was skipped)>
 - .design-rules/config.json (skin: <old> → <new>)
 <- .design-rules/skins/<name>.json (cached, only if Source 4 was used)>
 ```
