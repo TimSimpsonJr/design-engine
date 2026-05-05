@@ -86,6 +86,7 @@ agents/                                        Audit agents invoked by /design-*
 data/                                          Static catalogs + token JSON
   awesome-design-md-index.json                   Pinned catalog of 70 brands fetchable from VoltAgent/awesome-design-md
   skins/{toss,stripe,linear,vercel,notion}.json  5 bundled skins (colors.light, colors.dark, fonts)
+  font-sources.json                              Font-family → source map (google/system/proprietary) used by /design-skin to decide @import
   tokens/{colors,typography,spacing,radii,shadows,motion}.json  Framework-agnostic token sources
   recipes/{saas,ecommerce,fintech,social,productivity}.json     5 page composition recipes (section sequences)
 
@@ -111,7 +112,7 @@ README.md                                      User-facing intro, quick start, c
 
 **Skin → adapter → theme.css.** Skin JSON (`data/skins/<name>.json`) holds palette + fonts. `/design-skin` resolves a skin via 4-source lookup (project cache → user global → bundled → awesome-design-md fetch), then writes its values into the active adapter's `theme.css`. The 5 bundled skins now specify accurate upstream fonts: Vercel→Geist, Stripe→SF Pro Display (sohne-var fallback), Toss→Pretendard. Linear and Notion stay on Inter (closest available match for their upstream specs).
 
-**Skin font value vs. fonts.css consumption.** Skin sets `--font-primary` in `theme.css` via `/design-skin` and `/design-settings-page`. Now resolved: `fonts.css`'s body rule consumes `var(--font-primary)`, and the managed `@import` block is rewritten when `/design-skin` applies a skin (latter is a deferred follow-up).
+**Skin font value vs. fonts.css consumption.** Skin sets `--font-primary` in `theme.css` via `/design-skin` and `/design-settings-page`. `fonts.css`'s body rule consumes `var(--font-primary)`, and `/design-skin` now also rewrites the managed `@import` block in `fonts.css` based on `data/font-sources.json` — `type: "google"` fonts get an `@import`; `system`/`proprietary`/unknown fonts do not (browser falls back via the variable's fallback chain).
 
 **Adapter inheritance.** `react-shadcn`, `astro`, `sveltekit` all declare `extends: "tailwind-v4"` in their manifests, meaning their settings-page generation reads from both the framework adapter's templates and tailwind-v4's theme files.
 
