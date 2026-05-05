@@ -204,6 +204,48 @@ Add this to your config:
   designEngine()
 \`\`\`
 
+## Step 7.6: For astro direct mode, set up live write-back files
+
+Applies only when `<adapter>` is `astro` AND `writeCapable === "direct"`.
+
+Skip the existing Step 6 output path and Step 4-5 token-substitution logic for this case. Direct mode uses a different scaffold — no per-template token substitution, no route file. (Snippet-mode adapters like `plain-css` continue using the original logic.)
+
+For astro direct mode, write four files into the user's project (paths relative to project root):
+
+1. `src/design-engine/theme-io.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/astro/templates/theme-io.ts`.
+2. `src/design-engine/astro-integration-design-engine.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/astro/templates/astro-integration-design-engine.ts`. Its `import` of `'./theme-io'` is correct (sibling, extensionless).
+3. `src/design-engine/__design-page.html` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/astro/templates/__design-page.html`.
+4. `src/design-engine/__design-page.js` — compile from `${CLAUDE_PLUGIN_ROOT}/adapters/astro/templates/__design-page.ts`. Use:
+   ```
+   npx --yes esbuild --bundle --format=esm --target=es2022 --platform=browser --outfile=src/design-engine/__design-page.js "${CLAUDE_PLUGIN_ROOT}/adapters/astro/templates/__design-page.ts"
+   ```
+   esbuild is normally installed transitively with Vite (which Astro uses internally). If `npx --yes esbuild` fails (esbuild not found), tell the user: "esbuild not available — run `npm install` to install dependencies, then re-run `/design-settings-page`." Don't auto-install — let the user handle it.
+
+The integration loads `__design-page.html` and `__design-page.js` at runtime via `fs.readFile`, resolved relative to the integration file's own directory (`import.meta.url`). They MUST be co-located.
+
+Then patch `astro.config.mjs` (or `.ts`/`.js` if that's what the project uses) to register the integration. Read the config file first. If it matches the simple `defineConfig({ integrations: [...] })` shape, edit it to add:
+
+\`\`\`js
+import designEngine from './src/design-engine/astro-integration-design-engine';
+
+export default defineConfig({
+  integrations: [designEngine()],
+  // ...other existing config
+});
+\`\`\`
+
+If `integrations` already has entries, append `designEngine()` to the array. If `integrations` key doesn't exist in the config, add it.
+
+If `astro.config.mjs` is custom or conditional, do NOT auto-edit. Print this snippet and ask the user to add it manually:
+
+\`\`\`
+[design-engine] Could not safely auto-patch astro.config.mjs.
+Add this to your config:
+  import designEngine from './src/design-engine/astro-integration-design-engine';
+  // Inside defineConfig({ integrations: [...] }):
+  designEngine()
+\`\`\`
+
 ## Step 8: Update config marker
 
 Edit `.design-rules/config.json` and set `settingsPage` to `true`. Preserve all other fields.
