@@ -260,7 +260,13 @@ function buildFontPicker(): HTMLElement {
   input.addEventListener('focus', () => renderSuggestions(input.value));
   input.addEventListener('input', () => {
     renderSuggestions(input.value);
-    updateFont(input.value, null);
+    // Update local preview only; defer save until blur or suggestion pick.
+    if (tokens) {
+      tokens.font = input.value;
+      updateTokensStyle();
+      const pre = document.getElementById('de-css-output');
+      if (pre) pre.textContent = generateCss();
+    }
   });
   input.addEventListener('blur', () => {
     const match = OFFLINE_FONTS.find(f => f.family.toLowerCase() === input.value.toLowerCase());
