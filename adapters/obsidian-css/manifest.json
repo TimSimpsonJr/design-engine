@@ -11,7 +11,7 @@
     "settingsTab": "templates/settings-tab.ts"
   },
   "settingsPage": {
-    "writeCapable": true,
+    "writeCapable": "direct",
     "devGate": null,
     "routePath": "settings-tab"
   },

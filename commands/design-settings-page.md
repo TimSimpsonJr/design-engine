@@ -30,9 +30,7 @@ Inspect the `settingsPage` field:
 - `devGate`: e.g. `"import.meta.env.DEV"` for Vite-based adapters, `null` for others.
 - `routePath`: where the settings page is reachable.
 
-Note: `obsidian-css` may still report `true` and `tailwind-v4` may still report `false`. Treat those as `"direct"` and `"none"` respectively. (Full enum migration is a follow-up issue.)
-
-If `writeCapable` is `"none"` (or `false`), tell the user the active adapter doesn't provide a settings page template and stop.
+If `writeCapable` is `"none"`, tell the user the active adapter doesn't provide a settings page template and stop.
 
 ## Step 3: Pick the template path
 
@@ -281,7 +279,7 @@ Generated design-engine settings page.
 Adapter:    <adapter>
 Template:   ${CLAUDE_PLUGIN_ROOT}/adapters/<adapter>/templates/<filename>
 Output:     <output-path>
-Mode:       <writeCapable from manifest — 'snippet', true, or 'direct'>
+Mode:       <writeCapable from manifest — 'direct', 'snippet', or 'none'>
 Dev gate:   <devGate from manifest, or 'none'>
 
 How to access:
@@ -303,9 +301,9 @@ automatically while the dev server is running.
 - Use Edit (line-replacement) for the default-token substitutions — preserves comments, formatting, and any per-template idioms.
 - For Next.js detection in react-shadcn: read `package.json` and check for `next`. Then check if `src/app/` exists (app router) vs `src/pages/` (pages router). When in doubt, ask.
 - The `${CLAUDE_PLUGIN_ROOT}` variable resolves to the design-engine plugin's install directory.
-- `writeCapable` semantics (target enum: `"direct" | "snippet" | "none"`):
-  - `"direct"` — UI writes back to disk live (react-shadcn via dev-only Vite plugin; sveltekit via dev-only `+server.ts` endpoint; obsidian-css via PluginSettingTab API — manifest may still report `true`, treat as `"direct"`)
-  - `"snippet"` — UI shows generated CSS, copy/download buttons; user pastes manually (astro, plain-css)
-  - `"none"` — no settings page (e.g., `tailwind-v4` base adapter — manifest may still report `false`, treat as `"none"`)
+- `writeCapable` semantics (enum: `"direct" | "snippet" | "none"`):
+  - `"direct"` — UI writes back to disk live (react-shadcn via dev-only Vite plugin; astro via dev-only Astro integration; sveltekit via dev-only `+server.ts` endpoint; obsidian-css via the Obsidian PluginSettingTab API)
+  - `"snippet"` — UI shows generated CSS, copy/download buttons; user pastes manually (plain-css)
+  - `"none"` — no settings page (e.g., `tailwind-v4` base adapter)
 - The `tailwind-v4` adapter does not provide a settings page — frameworks that extend it (`react-shadcn`, `astro`, `sveltekit`) provide their own.
 - Don't fail loudly if a single skin token is missing — fall back to the template's existing default and continue.

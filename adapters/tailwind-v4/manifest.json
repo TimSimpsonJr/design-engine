@@ -5,6 +5,6 @@
   "components": { "targetPath": null },
   "scaffold": { "available": false, "entry": null },
   "templates": { "page": null, "component": null, "pattern": null },
-  "settingsPage": { "writeCapable": false, "devGate": null, "routePath": null },
+  "settingsPage": { "writeCapable": "none", "devGate": null, "routePath": null },
   "cursorRules": true
 }
