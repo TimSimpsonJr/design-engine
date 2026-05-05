@@ -552,7 +552,7 @@ This table enumerates the **settings-page artifacts** that `/design-settings-pag
 | `sveltekit` | direct | `src/lib/server/design-engine/theme-io.ts` | deterministic |
 | | | `src/routes/__design/api/tokens/+server.ts` | deterministic |
 | | | `src/routes/__design/+page.svelte` | deterministic |
-| | | `src/routes/__design/+page.ts` (optional dev guard) | deterministic |
+| | | `src/routes/__design/+page.ts` (optional dev guard) | non-deterministic (no canonical template — generated from inline snippet in `/design-settings-page.md`) |
 | `plain-css` | snippet | `design-settings.html` (project root) | non-deterministic (substituted) |
 | `tailwind-v4` | none | (none) | — |
 
