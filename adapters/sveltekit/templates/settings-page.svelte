@@ -172,7 +172,7 @@
     if (!tokens) return;
     fontInput = f.family;
     tokens.font = f.family;
-    pendingFontImport = { name: f.family, weights: f.weights };
+    pendingFontImport = { name: f.family, weights: f.weights, axisRange: f.axisRange };
     suggestionsOpen = false;
     void flushSave();
   }
