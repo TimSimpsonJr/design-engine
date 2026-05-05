@@ -1,0 +1,17 @@
+:root {
+  --brand: #721FE5;
+  --primary: #030213;
+  --background: #FAFAFA;
+  --card: #FFFFFF;
+  --foreground: #2A2A2A;
+  --destructive: #d4183d;
+  --success: #6B9B7A;
+  --warning: #D97706;
+  --info: #3B82F6;
+  --font-primary: 'Geist', system-ui;
+}
+
+.dark {
+  --brand: #ffffff;
+  --background: #000000;
+}
