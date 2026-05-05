@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Design Engine Settings</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style id="de-tokens">
+    :root {
+      --de-brand: #721FE5;
+      --de-primary: #030213;
+      --de-background: #FAFAFA;
+      --de-card: #FFFFFF;
+      --de-foreground: #2A2A2A;
+      --de-destructive: #d4183d;
+      --de-success: #6B9B7A;
+      --de-warning: #D97706;
+      --de-info: #3B82F6;
+      --de-font-primary: 'Inter', system-ui, sans-serif;
+    }
+    html.de-dark {
+      --de-brand: #ffffff;
+      --de-primary: #ededed;
+      --de-background: #0a0a0a;
+      --de-card: #141414;
+      --de-foreground: #ededed;
+      --de-destructive: #ff6b61;
+      --de-success: #3b8ff0;
+      --de-warning: #fbbf24;
+      --de-info: #3b8ff0;
+    }
+    body {
+      margin: 0;
+      font-family: var(--de-font-primary);
+      background: var(--de-background);
+      color: var(--de-foreground);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .de-page { max-width: 900px; margin: 0 auto; padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+    .de-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+    .de-title { font-size: 24px; font-weight: 700; margin: 0; }
+    .de-subtitle { font-size: 14px; opacity: 0.7; margin: 4px 0 0 0; }
+    .de-status { font-size: 12px; }
+    .de-status-saving { opacity: 0.7; }
+    .de-status-saved { color: var(--de-success); }
+    .de-status-error { color: var(--de-destructive); }
+    .de-mode-toggle { display: inline-flex; border: 1px solid color-mix(in oklab, var(--de-foreground) 20%, transparent); border-radius: 6px; overflow: hidden; }
+    .de-mode-toggle button { padding: 6px 12px; font-size: 13px; background: transparent; color: inherit; border: none; cursor: pointer; }
+    .de-mode-toggle button.active { background: var(--de-foreground); color: var(--de-background); }
+    .de-card { background: var(--de-card); border: 1px solid color-mix(in oklab, var(--de-foreground) 10%, transparent); border-radius: 8px; padding: 24px; }
+    .de-card h2 { font-size: 18px; font-weight: 700; margin: 0 0 16px 0; }
+    .de-color-row { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+    .de-color-row label { width: 128px; font-family: ui-monospace, monospace; font-size: 13px; }
+    .de-color-row input[type="color"] { width: 64px; height: 40px; border: none; padding: 0; background: transparent; cursor: pointer; }
+    .de-color-row input[type="text"] { flex: 1; padding: 8px 12px; border: 1px solid color-mix(in oklab, var(--de-foreground) 20%, transparent); border-radius: 6px; font-family: ui-monospace, monospace; background: var(--de-background); color: var(--de-foreground); }
+    .de-font-input { width: 100%; padding: 8px 12px; border: 1px solid color-mix(in oklab, var(--de-foreground) 20%, transparent); border-radius: 6px; font-family: ui-monospace, monospace; background: var(--de-background); color: var(--de-foreground); box-sizing: border-box; }
+    .de-font-suggestions { position: absolute; z-index: 10; background: var(--de-card); border: 1px solid color-mix(in oklab, var(--de-foreground) 20%, transparent); border-radius: 6px; max-height: 256px; overflow-y: auto; left: 0; right: 0; top: 100%; margin-top: 4px; }
+    .de-font-suggestions button { display: flex; justify-content: space-between; width: 100%; padding: 8px 12px; background: transparent; border: none; cursor: pointer; color: inherit; text-align: left; }
+    .de-font-suggestions button:hover { background: color-mix(in oklab, var(--de-foreground) 5%, transparent); }
+    .de-font-cat { font-size: 11px; opacity: 0.6; }
+    .de-demo { display: flex; flex-direction: column; gap: 24px; }
+    .de-demo-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .de-btn { padding: 6px 12px; border-radius: 6px; font-size: 13px; border: none; cursor: pointer; color: white; }
+    .de-btn-brand { background: var(--de-brand); }
+    .de-btn-primary { background: var(--de-primary); }
+    .de-btn-destructive { background: var(--de-destructive); }
+    .de-btn-outline { background: transparent; color: var(--de-foreground); border: 1px solid color-mix(in oklab, var(--de-foreground) 30%, transparent); }
+    .de-chip { padding: 2px 8px; border-radius: 4px; font-size: 12px; color: white; }
+    .de-chip-success { background: var(--de-success); }
+    .de-chip-warning { background: var(--de-warning); }
+    .de-chip-error { background: var(--de-destructive); }
+    .de-chip-info { background: var(--de-info); }
+    .de-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 480px; }
+    .de-form input, .de-form select { padding: 8px 12px; border: 1px solid color-mix(in oklab, var(--de-foreground) 20%, transparent); border-radius: 6px; background: var(--de-background); color: var(--de-foreground); font-size: 14px; }
+    .de-stat-card { background: var(--de-card); border: 1px solid color-mix(in oklab, var(--de-foreground) 10%, transparent); border-radius: 8px; padding: 16px; max-width: 320px; }
+    .de-stat-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; opacity: 0.7; margin: 0; }
+    .de-stat-value { font-size: 36px; font-weight: 700; margin: 4px 0; }
+    .de-stat-delta { font-size: 13px; font-weight: 700; color: var(--de-success); margin: 0; }
+    .de-pre { background: color-mix(in oklab, var(--de-foreground) 5%, transparent); padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 12px; font-family: ui-monospace, monospace; white-space: pre; }
+    .de-error-box { background: var(--de-card); border: 1px solid var(--de-destructive); border-radius: 8px; padding: 24px; color: var(--de-destructive); }
+    .de-loading { padding: 24px; font-size: 14px; }
+    .de-relative { position: relative; }
+  </style>
+</head>
+<body>
+  <div id="de-root"></div>
+  <script type="module" src="/__design/page.js"></script>
+</body>
+</html>

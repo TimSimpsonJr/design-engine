@@ -1,0 +1,12 @@
+:root {
+  --brand: #111111;
+  --brand: #222222;
+  --primary: #030213;
+  --background: #FAFAFA;
+  --card: #FFFFFF;
+  --foreground: #2A2A2A;
+  --destructive: #d4183d;
+  --success: #6B9B7A;
+  --warning: #D97706;
+  --info: #3B82F6;
+}

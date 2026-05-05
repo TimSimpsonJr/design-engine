@@ -26,18 +26,13 @@ If it exists, parse `adapter` and `skin` from it. You'll need both.
 Read `${CLAUDE_PLUGIN_ROOT}/adapters/<adapter>/manifest.json`.
 
 Inspect the `settingsPage` field:
-- `writeCapable`: `true` (Obsidian only — direct write via Settings API), `"snippet"` (web/plain — copy/download CSS), or `false` (no settings page available)
-- `devGate`: e.g. `"import.meta.env.DEV"` for Vite-based adapters, `null` for plain-css and obsidian-css
-- `routePath`: the URL/file route the settings page lives at
+- `writeCapable`: `"direct"` (live API write-back), `"snippet"` (copy/paste output), or `"none"` (no settings page).
+- `devGate`: e.g. `"import.meta.env.DEV"` for Vite-based adapters, `null` for others.
+- `routePath`: where the settings page is reachable.
 
-If `settingsPage.writeCapable` is `false` (only `tailwind-v4` should be in this state), tell the user:
+Note: `obsidian-css` may still report `true` and `tailwind-v4` may still report `false`. Treat those as `"direct"` and `"none"` respectively. (Full enum migration is a follow-up issue.)
 
-```
-The active adapter `<adapter>` does not provide a settings page template.
-Switch to `react-shadcn`, `astro`, `sveltekit`, `obsidian-css`, or `plain-css` to use this command.
-```
-
-Stop.
+If `writeCapable` is `"none"` (or `false`), tell the user the active adapter doesn't provide a settings page template and stop.
 
 ## Step 3: Pick the template path
 
@@ -169,6 +164,46 @@ async saveSettings() {
 
 No supporting files. The HTML page references `./styles/theme.css` directly — make sure the user's `theme.css` is at that relative path (it should be, given `plain-css`'s default `theme.targetPath` of `./styles/`).
 
+## Step 7.5: For react-shadcn direct mode, set up live write-back files
+
+Applies only when `<adapter>` is `react-shadcn` AND `writeCapable === "direct"`.
+
+Skip the existing Step 6 output path and Step 4-5 token-substitution logic for this case. Direct mode uses a different scaffold — no per-template token substitution, no route file. (Snippet-mode adapters like `plain-css` continue using the original logic.)
+
+For react-shadcn direct mode, write four files into the user's project (paths relative to project root):
+
+1. `src/design-engine/theme-io.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/theme-io.ts`.
+2. `src/design-engine/vite-plugin-design-engine.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/vite-plugin-design-engine.ts`. Its `import` of `'./theme-io'` is correct (sibling, extensionless).
+3. `src/design-engine/__design-page.html` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/__design-page.html`.
+4. `src/design-engine/__design-page.js` — compile from `${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/__design-page.ts`. Use:
+   ```
+   npx --yes esbuild --bundle --format=esm --target=es2022 --platform=browser --outfile=src/design-engine/__design-page.js "${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/__design-page.ts"
+   ```
+   esbuild is normally installed transitively with Vite. If `npx --yes esbuild` fails (esbuild not found), tell the user: "esbuild not available — run `npm install` to install dependencies, then re-run `/design-settings-page`." Don't auto-install — let the user handle it.
+
+The Vite plugin loads `__design-page.html` and `__design-page.js` at runtime via `fs.readFile`, resolved relative to the plugin file's own directory (`import.meta.url`). They MUST be co-located.
+
+Then patch `vite.config.ts` to register the plugin. Read `vite.config.ts` first. If it matches the simple scaffold shape (one `defineConfig` call with a `plugins` array), edit to add:
+
+\`\`\`ts
+import designEngine from './src/design-engine/vite-plugin-design-engine';
+
+export default defineConfig({
+  plugins: [react(), designEngine()],
+  // ...other existing config
+});
+\`\`\`
+
+If `vite.config.ts` is custom or conditional, do NOT auto-edit. Print this snippet and ask the user to add it manually:
+
+\`\`\`
+[design-engine] Could not safely auto-patch vite.config.ts.
+Add this to your config:
+  import designEngine from './src/design-engine/vite-plugin-design-engine';
+  // Inside defineConfig({ plugins: [...] }):
+  designEngine()
+\`\`\`
+
 ## Step 8: Update config marker
 
 Edit `.design-rules/config.json` and set `settingsPage` to `true`. Preserve all other fields.
@@ -189,12 +224,14 @@ Mode:       <writeCapable from manifest — 'snippet', true, or 'direct'>
 Dev gate:   <devGate from manifest, or 'none'>
 
 How to access:
-- Web (react-shadcn / astro / sveltekit): run `npm run dev`, visit <routePath>
+- react-shadcn (direct mode): run `npm run dev`, visit http://localhost:5173/__design/ — edits write back live to src/styles/theme.css
+- Other web (astro / sveltekit): run `npm run dev`, visit <routePath> — edits produce a copyable CSS snippet
 - Obsidian (obsidian-css): register the settings tab in onload() (see instructions above), reload plugin, open Obsidian Settings → <Plugin Name>
 - plain-css: open <output-path> in a browser
 
-Note: For web adapters, edits in the UI produce a copyable CSS snippet. Paste
-back into theme.css to apply. Live two-way write-back is a planned v0.x feature.
+Note: For snippet-mode web adapters (astro, sveltekit), edits in the UI produce
+a copyable CSS snippet. Paste back into theme.css to apply. react-shadcn is now
+direct mode — edits persist automatically via the dev-only Vite plugin.
 ```
 
 ## Notes for Claude
@@ -203,9 +240,9 @@ back into theme.css to apply. Live two-way write-back is a planned v0.x feature.
 - Use Edit (line-replacement) for the default-token substitutions — preserves comments, formatting, and any per-template idioms.
 - For Next.js detection in react-shadcn: read `package.json` and check for `next`. Then check if `src/app/` exists (app router) vs `src/pages/` (pages router). When in doubt, ask.
 - The `${CLAUDE_PLUGIN_ROOT}` variable resolves to the design-engine plugin's install directory.
-- `writeCapable` semantics:
-  - `true` — direct write to plugin settings JSON (Obsidian only, via PluginSettingTab API)
-  - `"snippet"` — UI shows generated CSS, copy/download buttons; user pastes manually
-  - `false` — no settings page (e.g., `tailwind-v4` base adapter)
+- `writeCapable` semantics (target enum: `"direct" | "snippet" | "none"`):
+  - `"direct"` — UI writes back to disk live (react-shadcn via dev-only Vite plugin; obsidian-css via PluginSettingTab API — manifest may still report `true`, treat as `"direct"`)
+  - `"snippet"` — UI shows generated CSS, copy/download buttons; user pastes manually (astro, sveltekit, plain-css)
+  - `"none"` — no settings page (e.g., `tailwind-v4` base adapter — manifest may still report `false`, treat as `"none"`)
 - The `tailwind-v4` adapter does not provide a settings page — frameworks that extend it (`react-shadcn`, `astro`, `sveltekit`) provide their own.
 - Don't fail loudly if a single skin token is missing — fall back to the template's existing default and continue.

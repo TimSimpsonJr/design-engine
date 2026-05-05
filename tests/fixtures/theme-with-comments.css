@@ -1,0 +1,16 @@
+/* Top-level comment */
+:root {
+  /* Brand color — primary identity */
+  --brand: #533afd;
+  --primary: #061b31;
+  --custom-thing: 42px; /* unmanaged — should be preserved */
+  --background: #ffffff;
+  --card: #ffffff;
+  --foreground: #061b31;
+  --destructive: #ea2261;
+  --success: #15be53;
+  --warning: #9b6829;
+  --info: #2874ad;
+  --font-primary: 'Geist', system-ui, sans-serif;
+  --my-other-thing: blue;
+}
