@@ -361,3 +361,48 @@ function formatFontPrimary(name: string): string {
   const quoted = needsQuotes ? `'${name}'` : name;
   return `${quoted}, system-ui, -apple-system, BlinkMacSystemFont, sans-serif`;
 }
+
+export type FontImportEntry = {
+  name: string;
+  url: string;
+};
+
+const FONT_BLOCK_START = '/* design-engine: managed-font-imports:start */';
+const FONT_BLOCK_END = '/* design-engine: managed-font-imports:end */';
+
+export type FontImportResult = { ok: true } | { ok: false; error: string; message: string };
+
+export async function writeFontImports(fontsPath: string, entries: FontImportEntry[]): Promise<FontImportResult> {
+  let raw: string;
+  try { raw = await readFile(fontsPath, 'utf8'); }
+  catch (e) { return { ok: false, error: 'read_failed', message: String(e) }; }
+
+  const newBlock = renderFontImportBlock(entries);
+  const startIdx = raw.indexOf(FONT_BLOCK_START);
+  const endIdx = raw.indexOf(FONT_BLOCK_END);
+
+  let newRaw: string;
+  if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+    const blockEnd = endIdx + FONT_BLOCK_END.length;
+    newRaw = raw.slice(0, startIdx) + newBlock + raw.slice(blockEnd);
+  } else {
+    newRaw = newBlock + '\n\n' + raw;
+  }
+
+  try { await atomicWrite(fontsPath, newRaw); }
+  catch (e) { return { ok: false, error: 'write_failed', message: String(e) }; }
+  return { ok: true };
+}
+
+function renderFontImportBlock(entries: FontImportEntry[]): string {
+  const lines = entries.map(e => `@import url('${e.url}');`).join('\n');
+  return `${FONT_BLOCK_START}\n${lines}${lines ? '\n' : ''}${FONT_BLOCK_END}`;
+}
+
+export function buildGoogleFontsUrl(family: string, weights?: number[], axisRange?: string): string {
+  const familyParam = family.replace(/ /g, '+');
+  let suffix = '';
+  if (axisRange) suffix = `:wght@${axisRange}`;
+  else if (weights && weights.length) suffix = `:wght@${weights.join(';')}`;
+  return `https://fonts.googleapis.com/css2?family=${familyParam}${suffix}&display=swap`;
+}
