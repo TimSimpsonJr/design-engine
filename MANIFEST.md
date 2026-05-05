@@ -35,9 +35,10 @@ adapters/                                      Stack-specific templates + theme 
       pattern.tsx                                  Pattern-shape template
       settings-page.tsx                            Legacy snippet-mode token editor (kept for reference; direct mode uses files below)
       theme-io.ts                                  Surgical theme.css parser/writer; runs in user project as Vite plugin server-side helper
-      vite-plugin-design-engine.ts                 Dev-only Vite plugin owning /__design/* (HTML + JSON API)
+      google-fonts-catalog.ts                      Server-only proxy helper for Google Fonts metadata (TTL cache + single-flight + serve-stale-on-failure)
+      vite-plugin-design-engine.ts                 Dev-only Vite plugin owning /__design/* (HTML + JSON APIs for tokens and fonts)
       __design-page.html                           Settings page HTML shell with token-driven CSS
-      __design-page.ts                             Settings page logic (vanilla TS, safe DOM, autosave with debounce)
+      __design-page.ts                             Settings page logic (vanilla TS, safe DOM, autosave with debounce, fetches /__design/api/google-fonts for autocomplete)
   astro/                                       Astro + Tailwind v4 adapter
     manifest.json
     README.md
@@ -45,10 +46,11 @@ adapters/                                      Stack-specific templates + theme 
       component.astro                              Single-component template
       page.astro                                   Page-shape template (recipe-driven)
       settings-page.astro                          Legacy snippet-mode token editor (kept for reference; direct mode uses files below)
-      theme-io.ts                                  Surgical theme.css parser/writer (copied from react-shadcn template)
-      astro-integration-design-engine.ts           Dev-only Astro integration that registers Vite middleware owning /__design/*
+      theme-io.ts                                  Surgical theme.css parser/writer (byte-identical copy of react-shadcn template)
+      google-fonts-catalog.ts                      Server-only Google Fonts proxy helper (byte-identical copy of react-shadcn template)
+      astro-integration-design-engine.ts           Dev-only Astro integration that registers Vite middleware owning /__design/* (tokens + fonts proxy)
       __design-page.html                           Settings page HTML shell (copied from react-shadcn)
-      __design-page.ts                             Settings page logic (copied from react-shadcn)
+      __design-page.ts                             Settings page logic (byte-identical copy of react-shadcn template)
   sveltekit/                                   SvelteKit + Tailwind v4 adapter (Svelte 5 runes)
     manifest.json
     README.md
@@ -56,8 +58,10 @@ adapters/                                      Stack-specific templates + theme 
       component.svelte                             Primitive component scaffold
       +page.svelte                                 Page scaffold (recipe-driven)
       settings-page.svelte                         Direct-mode token editor (Svelte 5 runes; light/dark, font picker, autosave)
-      theme-io.ts                                  Surgical theme.css parser/writer (server-only, copied verbatim from react-shadcn)
+      theme-io.ts                                  Surgical theme.css parser/writer (server-only, byte-identical copy of react-shadcn)
+      google-fonts-catalog.ts                      Server-only Google Fonts proxy helper (byte-identical copy of react-shadcn)
       api-tokens-server.ts                         Dev-gated +server.ts content (GET/POST /__design/api/tokens)
+      api-google-fonts-server.ts                   Dev-gated +server.ts content (GET /__design/api/google-fonts) — separate file required by SvelteKit's file-based routing
   obsidian-css/                                Obsidian plugin theme adapter
     manifest.json
     README.md
@@ -108,11 +112,13 @@ docs/
     2026-05-04-design-engine-implementation.md   Phased implementation plan (Phases 1-7)
     2026-05-05-design-init-migrate-design.md     Design for /design-init --migrate (issue #2)
 
-tests/                                         Unit tests for theme-io helper template
+tests/                                         Unit tests for adapter template helpers
   package.json                                   Node --test runner config (devDeps: typescript, @types/node)
   theme-io.parse.test.ts                         parseTokens edge cases — comments, strings, nested @media, dark inheritance
   theme-io.write.test.ts                         writeTokens round-trip + comment-safety + missing-var append
   theme-io.fonts.test.ts                         writeFontImports + buildGoogleFontsUrl
+  google-fonts-catalog.parse.test.ts             parseGoogleFontsResponse edge cases — XSSI prefix, BOM, axes, weights, category normalization
+  google-fonts-catalog.fetch.test.ts             createGoogleFontsCatalogFetcher — TTL behavior, single-flight dedupe, serve-stale-on-failure
   fixtures/*.css                                 7 theme.css and fonts.css fixtures for the above
 
 LICENSE                                        MIT (own work)
@@ -130,6 +136,8 @@ README.md                                      User-facing intro, quick start, c
 **Adapter inheritance.** `react-shadcn`, `astro`, `sveltekit` all declare `extends: "tailwind-v4"` in their manifests, meaning their settings-page generation reads from both the framework adapter's templates and tailwind-v4's theme files.
 
 **Settings-page mode (`writeCapable`).** Per-adapter manifest field declares whether the settings UI can write back to disk. Enum: `"direct" | "snippet" | "none"`. Current values: `react-shadcn`, `astro`, `sveltekit`, and `obsidian-css` are `"direct"` (live write-back — react-shadcn via dev-only Vite plugin in `templates/vite-plugin-design-engine.ts` + `theme-io.ts`; astro via dev-only Astro integration through `astro:server:setup`; sveltekit via dev-only `+server.ts` endpoint at `/__design/api/tokens`; obsidian-css via the Obsidian PluginSettingTab API). `plain-css` is `"snippet"` (copy/paste output — no dev server). `tailwind-v4` is `"none"` (base adapter, no settings page).
+
+**Google Fonts autocomplete (web adapters).** The font picker on the settings page autocompletes against the live Google Fonts catalog. The browser cannot fetch `fonts.google.com/metadata/fonts` directly because the endpoint serves no `Access-Control-Allow-Origin` header. Each direct-mode web adapter (`react-shadcn`, `astro`, `sveltekit`) ships a same-origin proxy at `/__design/api/google-fonts` backed by `templates/google-fonts-catalog.ts`. The proxy handles XSSI-prefix stripping, response normalization to `FontEntry[]`, and an in-memory module-scope cache with 24h TTL, single-flight dedupe, and serve-stale-on-failure. SvelteKit's split between `api-tokens-server.ts` and `api-google-fonts-server.ts` is forced by file-based routing — one `+server.ts` per route path.
 
 **Adapter migration (`/design-init --migrate`).** Switches a project from one web adapter to another while preserving skin/recipe/font/customized-tokens. Out of scope: obsidian-css migration (settings tab is too fragile to move automatically); generating new settings-page artifacts (user runs `/design-settings-page` separately); auto-reverting old build-config patches (always manual). Cleanup uses `oldArtifacts - newArtifacts` set difference so shared files (e.g., `theme-io.ts` between react-shadcn and astro) survive overwrite. Old theme files are never auto-deleted because `theme-io`'s `writeTokens()` only preserves user-added unmanaged CSS in-place — they always land in a manual-cleanup list. Adds optional `migratedAt` and `migratedFrom` fields to `.design-rules/config.json`.
 

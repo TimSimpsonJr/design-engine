@@ -13,6 +13,7 @@ import {
   readTokens, writeTokens, writeFontImports, buildGoogleFontsUrl,
   type Mode, type ColorTokens
 } from './theme-io';
+import { fetchGoogleFontsCatalog } from './google-fonts-catalog';
 
 export type DesignEngineIntegrationOptions = {
   themePath?: string;
@@ -60,6 +61,23 @@ export default function designEngine(options: DesignEngineIntegrationOptions = {
             res.statusCode = 200;
             res.setHeader('content-type', 'text/javascript; charset=utf-8');
             res.end(js);
+            return;
+          }
+
+          if (url === '/__design/api/google-fonts' && req.method === 'GET') {
+            res.setHeader('content-type', 'application/json');
+            try {
+              const fonts = await fetchGoogleFontsCatalog();
+              res.statusCode = 200;
+              res.end(JSON.stringify(fonts));
+            } catch (err) {
+              res.statusCode = 503;
+              res.end(JSON.stringify({
+                ok: false,
+                error: 'catalog_unavailable',
+                message: 'Failed to load Google Fonts catalog',
+              }));
+            }
             return;
           }
 
@@ -121,7 +139,12 @@ export default function designEngine(options: DesignEngineIntegrationOptions = {
             return;
           }
 
-          if (url === '/__design/api/tokens' || url === '/__design/' || url === '/__design/page.js') {
+          if (
+            url === '/__design/api/tokens' ||
+            url === '/__design/api/google-fonts' ||
+            url === '/__design/' ||
+            url === '/__design/page.js'
+          ) {
             res.statusCode = 405;
             res.end();
             return;

@@ -542,15 +542,19 @@ This table enumerates the **settings-page artifacts** that `/design-settings-pag
 | Adapter | writeCapable | Settings-page artifacts (paths relative to project root) | Determinism |
 |---|---|---|---|
 | `react-shadcn` | direct | `src/design-engine/theme-io.ts` | deterministic |
+| | | `src/design-engine/google-fonts-catalog.ts` | deterministic |
 | | | `src/design-engine/vite-plugin-design-engine.ts` | deterministic |
 | | | `src/design-engine/__design-page.html` | deterministic |
 | | | `src/design-engine/__design-page.js` | non-deterministic (esbuild) |
 | `astro` | direct | `src/design-engine/theme-io.ts` | deterministic |
+| | | `src/design-engine/google-fonts-catalog.ts` | deterministic |
 | | | `src/design-engine/astro-integration-design-engine.ts` | deterministic |
 | | | `src/design-engine/__design-page.html` | deterministic |
 | | | `src/design-engine/__design-page.js` | non-deterministic (esbuild) |
 | `sveltekit` | direct | `src/lib/server/design-engine/theme-io.ts` | deterministic |
+| | | `src/lib/server/design-engine/google-fonts-catalog.ts` | deterministic |
 | | | `src/routes/__design/api/tokens/+server.ts` | deterministic |
+| | | `src/routes/__design/api/google-fonts/+server.ts` | deterministic |
 | | | `src/routes/__design/+page.svelte` | deterministic |
 | | | `src/routes/__design/+page.ts` (optional dev guard) | non-deterministic (no canonical template — generated from inline snippet in `/design-settings-page.md`) |
 | `plain-css` | snippet | `design-settings.html` (project root) | non-deterministic (substituted) |

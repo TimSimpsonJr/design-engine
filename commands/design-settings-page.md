@@ -168,12 +168,13 @@ Applies only when `<adapter>` is `react-shadcn` AND `writeCapable === "direct"`.
 
 Skip the existing Step 6 output path and Step 4-5 token-substitution logic for this case. Direct mode uses a different scaffold — no per-template token substitution, no route file. (Snippet-mode adapters like `plain-css` continue using the original logic. The sveltekit direct-mode path is handled separately in Step 7.6.)
 
-For react-shadcn direct mode, write four files into the user's project (paths relative to project root):
+For react-shadcn direct mode, write five files into the user's project (paths relative to project root):
 
 1. `src/design-engine/theme-io.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/theme-io.ts`.
-2. `src/design-engine/vite-plugin-design-engine.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/vite-plugin-design-engine.ts`. Its `import` of `'./theme-io'` is correct (sibling, extensionless).
-3. `src/design-engine/__design-page.html` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/__design-page.html`.
-4. `src/design-engine/__design-page.js` — compile from `${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/__design-page.ts`. Use:
+2. `src/design-engine/google-fonts-catalog.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/google-fonts-catalog.ts`. Server-only helper; powers the dev-only `/__design/api/google-fonts` proxy. Imported by the Vite plugin via `./google-fonts-catalog` (sibling, extensionless).
+3. `src/design-engine/vite-plugin-design-engine.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/vite-plugin-design-engine.ts`. Its `import` of `'./theme-io'` and `'./google-fonts-catalog'` is correct (sibling, extensionless).
+4. `src/design-engine/__design-page.html` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/__design-page.html`.
+5. `src/design-engine/__design-page.js` — compile from `${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/__design-page.ts`. Use:
    ```
    npx --yes esbuild --bundle --format=esm --target=es2022 --platform=browser --outfile=src/design-engine/__design-page.js "${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/__design-page.ts"
    ```
@@ -208,12 +209,13 @@ Applies only when `<adapter>` is `astro` AND `writeCapable === "direct"`.
 
 Skip the existing Step 6 output path and Step 4-5 token-substitution logic for this case. Direct mode uses a different scaffold — no per-template token substitution, no route file. (Snippet-mode adapters like `plain-css` continue using the original logic.)
 
-For astro direct mode, write four files into the user's project (paths relative to project root):
+For astro direct mode, write five files into the user's project (paths relative to project root):
 
 1. `src/design-engine/theme-io.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/astro/templates/theme-io.ts`.
-2. `src/design-engine/astro-integration-design-engine.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/astro/templates/astro-integration-design-engine.ts`. Its `import` of `'./theme-io'` is correct (sibling, extensionless).
-3. `src/design-engine/__design-page.html` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/astro/templates/__design-page.html`.
-4. `src/design-engine/__design-page.js` — compile from `${CLAUDE_PLUGIN_ROOT}/adapters/astro/templates/__design-page.ts`. Use:
+2. `src/design-engine/google-fonts-catalog.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/astro/templates/google-fonts-catalog.ts`. Server-only helper; powers the dev-only `/__design/api/google-fonts` proxy. Imported by the Astro integration via `./google-fonts-catalog` (sibling, extensionless).
+3. `src/design-engine/astro-integration-design-engine.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/astro/templates/astro-integration-design-engine.ts`. Its `import` of `'./theme-io'` and `'./google-fonts-catalog'` is correct (sibling, extensionless).
+4. `src/design-engine/__design-page.html` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/astro/templates/__design-page.html`.
+5. `src/design-engine/__design-page.js` — compile from `${CLAUDE_PLUGIN_ROOT}/adapters/astro/templates/__design-page.ts`. Use:
    ```
    npx --yes esbuild --bundle --format=esm --target=es2022 --platform=browser --outfile=src/design-engine/__design-page.js "${CLAUDE_PLUGIN_ROOT}/adapters/astro/templates/__design-page.ts"
    ```
@@ -249,11 +251,13 @@ Applies only when `<adapter>` is `sveltekit` AND `writeCapable === "direct"`.
 
 Skip the Step 4-5 token-substitution logic for this case. Direct mode uses a different scaffold — no per-template hex defaults to rewrite. The page reads tokens from the server at runtime via `GET /__design/api/tokens`.
 
-For sveltekit direct mode, write three files into the user's project (paths relative to project root):
+For sveltekit direct mode, write five files into the user's project (paths relative to project root):
 
 1. `src/lib/server/design-engine/theme-io.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/sveltekit/templates/theme-io.ts`. Server-only helper. Placing it under `$lib/server/` ensures SvelteKit excludes it from the client bundle.
-2. `src/routes/__design/api/tokens/+server.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/sveltekit/templates/api-tokens-server.ts`. Its `import` of `$lib/server/design-engine/theme-io` matches the path above.
-3. `src/routes/__design/+page.svelte` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/sveltekit/templates/settings-page.svelte`. This is the direct-mode page; it replaces the snippet-mode template that Step 6 would otherwise write.
+2. `src/lib/server/design-engine/google-fonts-catalog.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/sveltekit/templates/google-fonts-catalog.ts`. Server-only helper that powers the dev-only `/__design/api/google-fonts` proxy. Co-located with `theme-io.ts` under `$lib/server/` so SvelteKit excludes it from the client bundle.
+3. `src/routes/__design/api/tokens/+server.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/sveltekit/templates/api-tokens-server.ts`. Its `import` of `$lib/server/design-engine/theme-io` matches the path above.
+4. `src/routes/__design/api/google-fonts/+server.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/sveltekit/templates/api-google-fonts-server.ts`. Imports `$lib/server/design-engine/google-fonts-catalog`. SvelteKit's file-based routing requires this be a separate `+server.ts` from the tokens API — one file, one route path.
+5. `src/routes/__design/+page.svelte` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/sveltekit/templates/settings-page.svelte`. This is the direct-mode page; it replaces the snippet-mode template that Step 6 would otherwise write.
 
 SvelteKit auto-discovers `+server.ts` and `+page.svelte` files — no config patching needed.
 

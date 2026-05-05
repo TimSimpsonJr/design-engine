@@ -38,8 +38,11 @@
     { family: 'Albert Sans', category: 'sans-serif', weights: [400, 500, 600, 700] },
   ];
 
-  const GOOGLE_FONTS_METADATA_URL = 'https://fonts.google.com/metadata/fonts';
-  const CATALOG_CACHE_KEY = 'de-google-fonts-catalog-v1';
+  // Same-origin proxy installed by src/routes/__design/api/google-fonts/+server.ts.
+  // The browser-side fetch must NOT hit fonts.google.com directly — that endpoint
+  // is same-origin only and CORS-blocks browser fetches.
+  const GOOGLE_FONTS_PROXY_URL = '/__design/api/google-fonts';
+  const CATALOG_CACHE_KEY = 'de-google-fonts-catalog-v2';
 
   let tokens = $state<TokenSet | null>(null);
   let mode = $state<Mode>('light');
@@ -55,6 +58,7 @@
   let savedHideTimer: ReturnType<typeof setTimeout> | null = null;
   let suggestionsHideTimer: ReturnType<typeof setTimeout> | null = null;
   let catalogPromise: Promise<FontEntry[]> | null = null;
+  let catalogState = $state<'idle' | 'loading' | 'ready' | 'failed'>('idle');
 
   const filteredFonts = $derived(
     fontEntries.filter((f) => f.family.toLowerCase().includes(fontInput.toLowerCase())).slice(0, 20),
@@ -175,7 +179,18 @@
 
   function onFontFocus() {
     suggestionsOpen = true;
-    if (browser) void loadGoogleFontsCatalog();
+    if (browser) void ensureCatalog();
+  }
+
+  async function ensureCatalog() {
+    if (catalogState === 'ready' || catalogState === 'failed' || catalogState === 'loading') return;
+    catalogState = 'loading';
+    try {
+      await loadGoogleFontsCatalog();
+      catalogState = 'ready';
+    } catch {
+      catalogState = 'failed';
+    }
   }
 
   function onFontBlur() {
@@ -202,70 +217,22 @@
         const parsed = JSON.parse(cached) as FontEntry[];
         if (Array.isArray(parsed) && parsed.length > 0) {
           fontEntries = parsed;
+          catalogState = 'ready';
           return parsed;
         }
       }
     } catch { /* corrupt cache — refetch */ }
 
     catalogPromise = (async () => {
-      const res = await fetch(GOOGLE_FONTS_METADATA_URL);
+      const res = await fetch(GOOGLE_FONTS_PROXY_URL);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = await res.text();
-      const stripped = stripJsonPrefix(text);
-      const data = JSON.parse(stripped);
-      const list = Array.isArray(data?.familyMetadataList) ? data.familyMetadataList : [];
-      const mapped = list
-        .map(mapMetadataEntry)
-        .filter((e: FontEntry | null): e is FontEntry => e !== null);
-      if (mapped.length === 0) throw new Error('Empty catalog');
-      try { sessionStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(mapped)); } catch { /* quota — skip cache */ }
-      fontEntries = mapped;
-      return mapped;
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) throw new Error('Empty catalog');
+      try { sessionStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(data)); } catch { /* quota — skip cache */ }
+      fontEntries = data;
+      return data as FontEntry[];
     })();
     return catalogPromise;
-  }
-
-  function stripJsonPrefix(raw: string): string {
-    // Google's XSSI prefix is `)]}'` followed by a newline, but be tolerant of variants.
-    const trimmed = raw.replace(/^﻿/, '');
-    const match = trimmed.match(/^[\s\)\]\}'"]*?(\{|\[)/);
-    if (match && match.index === 0) return trimmed.slice(match[0].length - 1);
-    return trimmed;
-  }
-
-  function mapMetadataEntry(raw: any): FontEntry | null {
-    if (!raw || typeof raw.family !== 'string') return null;
-    const family = raw.family;
-    const category = normalizeCategory(raw.category);
-
-    const axes = Array.isArray(raw.axes) ? raw.axes : [];
-    const wght = axes.find((a: any) => a?.tag === 'wght' && typeof a.min === 'number' && typeof a.max === 'number');
-    if (wght) {
-      return { family, category, axisRange: `${Math.round(wght.min)}..${Math.round(wght.max)}` };
-    }
-
-    const weights: number[] = [];
-    if (raw.fonts && typeof raw.fonts === 'object') {
-      const seen = new Set<number>();
-      for (const key of Object.keys(raw.fonts)) {
-        const n = parseInt(key, 10);
-        if (!Number.isNaN(n) && n >= 100 && n <= 1000 && !seen.has(n)) {
-          seen.add(n);
-          weights.push(n);
-        }
-      }
-      weights.sort((a, b) => a - b);
-    }
-
-    if (weights.length === 0 || (weights.length === 1 && weights[0] === 400)) {
-      return { family, category };
-    }
-    return { family, category, weights };
-  }
-
-  function normalizeCategory(raw: any): string {
-    if (typeof raw !== 'string' || !raw) return 'sans-serif';
-    return raw.toLowerCase().replace(/_/g, '-');
   }
 
   function onModeToggle(m: Mode) {
@@ -359,8 +326,13 @@
             onfocus={onFontFocus}
             onblur={onFontBlur}
           />
-          {#if suggestionsOpen && filteredFonts.length > 0}
+          {#if suggestionsOpen && (filteredFonts.length > 0 || catalogState === 'loading' || catalogState === 'failed')}
             <div class="de-font-suggestions">
+              {#if catalogState === 'loading'}
+                <div class="de-font-hint">Loading Google Fonts catalog…</div>
+              {:else if catalogState === 'failed'}
+                <div class="de-font-hint">Couldn’t load the full Google Fonts catalog. Showing common fonts only.</div>
+              {/if}
               {#each filteredFonts as f (f.family)}
                 <button type="button" onmousedown={(e) => { e.preventDefault(); onFontPick(f); }}>
                   <span style="font-family: '{f.family}', system-ui">{f.family}</span>
@@ -580,6 +552,11 @@
   .de-font-cat {
     font-size: 11px;
     opacity: 0.6;
+  }
+  .de-font-hint {
+    font-size: 11px;
+    opacity: 0.6;
+    padding: 8px 12px;
   }
   .de-demo {
     display: flex;
