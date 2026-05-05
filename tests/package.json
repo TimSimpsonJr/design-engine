@@ -1,0 +1,8 @@
+{
+  "name": "design-engine-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --experimental-strip-types ./*.test.ts"
+  }
+}
