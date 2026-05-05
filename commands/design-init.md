@@ -367,7 +367,11 @@ This flow runs when `/design-init --migrate` is invoked (or option D from Step 0
 
 ### M1: Echo current config + select target adapter
 
-Read `.design-rules/config.json` (already verified to exist in Step 0). Echo the current config to the user.
+Read `.design-rules/config.json` (already verified to exist in Step 0).
+
+**Source-adapter guard.** If the marker's current `adapter` is `obsidian-css`, error: `Obsidian migration is not supported in v1. Run /design-init --reset instead.` Stop. (This is also checked in Step 0 for the `--migrate` flag path, but option D from the existing-marker prompt enters M1 directly — repeat the guard here so it cannot be bypassed.)
+
+Echo the current config to the user.
 
 Re-run the **adapter detection signals** from Step 1 to suggest a likely target. Show the full list of 5 supported adapters; mark the detected match (if any) as `(detected)`. Detection suggests, never auto-selects.
 
@@ -548,6 +552,7 @@ This table enumerates the **settings-page artifacts** that `/design-settings-pag
 | `sveltekit` | direct | `src/lib/server/design-engine/theme-io.ts` | deterministic |
 | | | `src/routes/__design/api/tokens/+server.ts` | deterministic |
 | | | `src/routes/__design/+page.svelte` | deterministic |
+| | | `src/routes/__design/+page.ts` (optional dev guard) | deterministic |
 | `plain-css` | snippet | `design-settings.html` (project root) | non-deterministic (substituted) |
 | `tailwind-v4` | none | (none) | — |
 
