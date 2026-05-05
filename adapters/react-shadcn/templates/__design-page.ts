@@ -444,8 +444,9 @@ async function flushSave() {
       body: JSON.stringify(payload),
     });
     const body = await res.json();
+    // Adopt server-canonical tokens if available, even on partial failure (207).
+    if (body.tokens) tokens = body.tokens;
     if (!res.ok || !body.ok) throw new Error(body.message ?? `HTTP ${res.status}`);
-    tokens = body.tokens;
     lastSaveError = null;
     updateTokensStyle();
     setStatus('saved');
