@@ -267,7 +267,7 @@ Saved recipe `<recipeName>` to <writePath>.
 Next:
 - /design-page <recipeName> "<description>" --recipe=<recipeName>  to scaffold a page using this recipe
 - Edit <writePath> directly to refine props or section ordering
-- Patterns for new vocabulary types live in components/patterns/ — author when needed
+- Patterns for new vocabulary types live in adapters/react-shadcn/components/patterns/ — author when needed
 ```
 
 ## Notes for Claude

@@ -31,7 +31,7 @@ Today, recipes are bundled (5 dashboards: `saas`, `ecommerce`, `fintech`, `socia
 
 ## 1. Vocabulary handling — no catalog file
 
-The system already references components: a section's `type` value (e.g., `kpi-grid`, `hero-card`) is a reference to a pattern in `adapters/react-shadcn/adapters/react-shadcn/components/patterns/`. Three levels exist today:
+The system already references components: a section's `type` value (e.g., `kpi-grid`, `hero-card`) is a reference to a pattern in `adapters/react-shadcn/components/patterns/`. Three levels exist today:
 
 - **Recipes** describe page shape (ordered list of section references).
 - **Patterns** define each section's internal composition.
