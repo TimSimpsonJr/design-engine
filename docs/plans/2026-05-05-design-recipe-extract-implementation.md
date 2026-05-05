@@ -198,9 +198,9 @@ The agent returns its result as a single fenced JSON code block — for example:
 Two valid result shapes:
 
 - **Success:** `{ "recipe": <recipe object>, "newVocabulary": [<list of new type names introduced>], "notes": [<warnings or info>] }`
-- **Failure:** `{ "error": "<message>", "stage": "<fetch | render | identify | format>" }`
+- **Failure:** `{ "error": "<message>", "stage": "<fetch | render | identify | format | cancel>" }`
 
-If the result has an `error` field, surface the error and stage to the user, do not write, stop.
+If the result has an `error` field, surface the error and stage to the user, do not write, stop. Special-case `stage === "cancel"`: print `Extraction cancelled — no recipe written.` (no stack/error noise) since this is an expected user action, not a failure.
 
 ## Step 5: Pre-confirm
 
@@ -270,7 +270,7 @@ Saved recipe `<recipeName>` to <writePath>.
   Authenticated: yes
 
 Next:
-- /design-page <recipeName> "<description>" --recipe=<recipeName>  to scaffold a page using this recipe
+- /design-page <page-name> "<description>" --recipe=<recipeName>  to scaffold a page using this recipe
 - Edit <writePath> directly to refine props or section ordering
 - Patterns for new vocabulary types live in adapters/react-shadcn/components/patterns/ — author when needed
 ```

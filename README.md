@@ -116,9 +116,7 @@ MIT. See `LICENSE` and `NOTICE`.
 
 ## Status
 
-v0.1.0 — initial public release. Roadmap (filed as GitHub issues after release):
+v0.2.0 — `/design-recipe extract` shipped. Roadmap (filed as GitHub issues):
 
 - Monorepo / multi-stack adapter routing
-- Adapter migration via `/design-init --migrate`
-- `/design-recipe extract <url>` agent
 - Settings page live two-way write-back via Vite plugin
