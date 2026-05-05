@@ -318,6 +318,9 @@ export async function writeTokens(themePath: string, mode: Mode, colors: ColorTo
   const bodyEnd = block.bodyEnd;
   const body = raw.slice(bodyStart, bodyEnd);
   const decls = scanDeclarations(body);
+  if (hasDuplicates(decls)) {
+    return { ok: false, error: 'duplicate_decl', message: `Duplicate managed variable in ${targetSelector} block.` };
+  }
 
   const wantedReplacements = new Map<string, string>();
   for (const k of MANAGED_COLOR_KEYS) wantedReplacements.set(k, colors[k]);

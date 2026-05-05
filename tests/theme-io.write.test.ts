@@ -99,3 +99,21 @@ test('writeTokens appends missing managed variable instead of replacing', async 
   assert.equal(after.tokens.dark.primary, '#abcabc');
   assert.equal(after.tokens.dark.brand, '#ffffff');
 });
+
+test('writeTokens fails closed on duplicate managed declarations', async (t) => {
+  const path = await workingCopy('theme-duplicate-decl.css');
+  t.after(() => rm(TMP, { recursive: true, force: true }));
+
+  const result = await writeTokens(path, 'light', { ...defaultColors() }, undefined);
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.error, 'duplicate_decl');
+});
+
+function defaultColors() {
+  return {
+    brand: '#abcdef', primary: '#030213', background: '#FAFAFA', card: '#FFFFFF',
+    foreground: '#2A2A2A', destructive: '#d4183d', success: '#6B9B7A',
+    warning: '#D97706', info: '#3B82F6',
+  };
+}
