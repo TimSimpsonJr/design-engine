@@ -49,7 +49,28 @@ Parse it. Capture `adapter`, `skin`, `recipe`, `font`.
 Order of precedence:
 1. If `recipeFlag` is set, use it.
 2. Else use `recipe` from the marker.
-3. If both are absent, prompt the user inline:
+3. If both are absent, prompt the user inline.
+
+   First, use Glob to check for `.design-rules/recipes/*.json`. If at least one match exists, list those project recipes ABOVE the bundled list. Otherwise, omit the project section entirely (preserve existing behavior).
+
+   With project recipes present:
+
+   ```
+   No recipe set. Pick one:
+
+   Project recipes (.design-rules/recipes/):
+   - <name1>
+   - <name2>
+
+   Bundled recipes:
+   1. saas — dashboard with KPI grid + charts + activity
+   2. ecommerce — product grid + cart + orders
+   3. fintech — portfolio + transactions + chart hero
+   4. social — feed + profile + messaging
+   5. productivity — list-heavy, sidebar + detail
+   ```
+
+   With no project recipes (default):
 
    ```
    No recipe set. Pick one:
@@ -60,16 +81,21 @@ Order of precedence:
    5. productivity — list-heavy, sidebar + detail
    ```
 
-   Map answer to the recipe slug. If the user types a name directly, accept it.
+   Map answer to the recipe slug. The user can either type a project-recipe name verbatim (map directly to that recipe) or pick a bundled option by number/name. If the user types a name directly, accept it.
 
 Record the resolved recipe name as `recipeName`.
 
 ## Step 3: Read recipe data
 
-Read `${CLAUDE_PLUGIN_ROOT}/data/recipes/<recipeName>.json`.
+Look up the recipe in this order (project overrides bundled):
 
-If the file doesn't exist (Phase 8 hasn't created recipe files yet):
-- Print a soft warning: "Recipe `<recipeName>` not found at expected path — using a generic skeleton. Phase 8 will add the recipe file."
+1. `.design-rules/recipes/<recipeName>.json` (project-local — extracted or hand-authored)
+2. `${CLAUDE_PLUGIN_ROOT}/data/recipes/<recipeName>.json` (bundled with the plugin)
+
+Stop at the first hit. Note the source for the summary in Step 9 (e.g., "(from project)" or "(from bundled)").
+
+If neither exists:
+- Print a soft warning: "Recipe `<recipeName>` not found in project (.design-rules/recipes/) or bundled (data/recipes/). Using a generic skeleton."
 - Use a default fallback: `{ "name": "<recipeName>", "sections": [{ "type": "hero" }, { "type": "kpi-grid", "columns": 2 }, { "type": "section-card", "title": "Recent Activity" }] }`
 
 If it exists, parse it. The expected shape is:

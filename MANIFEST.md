@@ -93,11 +93,13 @@ commands/                                      Slash command implementations
   design-lint.md                                 Fast pattern-based lint (regex grep)
   design-a11y.md                                 Accessibility audit (auto-fixes mechanical issues)
   design-audit.md                                UX audit (Nielsen heuristics)
+  design-recipe.md                               Extract a recipe from a URL via /design-recipe extract <url>; v1 supports extract subcommand only
 
 agents/                                        Audit agents invoked by /design-* commands
   design-reviewer.md                             Component/page review against design rules
   accessibility-reviewer.md                      WCAG AA review (touch targets, focus, contrast)
   ux-auditor.md                                  Usability heuristic review
+  recipe-extractor.md                            Multimodal section-identification agent invoked by /design-recipe extract; uses Chrome MCP for HTML+screenshot capture
 
 data/                                          Static catalogs + token JSON
   awesome-design-md-index.json                   Pinned catalog of 70 brands fetchable from VoltAgent/awesome-design-md
@@ -110,7 +112,12 @@ docs/
   plans/
     2026-05-04-design-engine-plugin-design.md    Original plugin design doc (lifecycles, decisions)
     2026-05-04-design-engine-implementation.md   Phased implementation plan (Phases 1-7)
+    2026-05-04-settings-page-write-back-design.md   Design for runtime settings-page write-back (live token editing UI per adapter)
+    2026-05-04-settings-page-write-back-implementation.md   Phased implementation of write-back UI for react-shadcn, astro, sveltekit, obsidian-css
     2026-05-05-design-init-migrate-design.md     Design for /design-init --migrate (issue #2)
+    2026-05-05-design-recipe-extract-design.md   Design for /design-recipe extract <url> agent (issue #3)
+    2026-05-05-design-recipe-extract-implementation.md   Phased implementation of /design-recipe extract
+    2026-05-05-google-fonts-autocomplete-design.md   Design for live Google Fonts catalog in settings-page font picker (issue #11)
 
 tests/                                         Unit tests for adapter template helpers
   package.json                                   Node --test runner config (devDeps: typescript, @types/node)
@@ -146,3 +153,5 @@ README.md                                      User-facing intro, quick start, c
 **Composition recipes feed `/design-page`.** `data/recipes/*.json` declare ordered section sequences (e.g., fintech: Hero + KPI grid + chart + transactions list). `/design-page` reads the active recipe from `.design-rules/config.json` (created in user projects by `/design-init`) and the active adapter's `templates/page.*` to scaffold the page.
 
 **The plugin is static; user-project state lives in `.design-rules/`.** `/design-init` writes `.design-rules/config.json` (skin, adapter, recipe, settingsPage flag) into the user's project. All subsequent commands read that file to know the active config. Skin caches live at `.design-rules/skins/`.
+
+**Recipe extraction.** `/design-recipe extract <url>` invokes `agents/recipe-extractor.md`, which fetches the page (WebFetch), captures screenshots at 1440px and 390px (Chrome MCP — see PORT-NOTE in the agent file for swap-out path), reads existing recipes for vocabulary context, and produces a recipe at `.design-rules/recipes/<name>.json`. Vocabulary is implicit in the union of `type` strings across all recipes — no separate catalog file. Extracted recipes carry `kind`, `sourceUrl`, `extractedAt`, `viewportsCaptured`, optional `authenticated` metadata, plus per-section `mobileBehavior` strings. Backwards-compatible with the bundled 5 recipes which lack these fields. `/design-page` reads `.design-rules/recipes/<name>.json` first and falls back to the bundled set, so extracted recipes are usable end-to-end. See `docs/plans/2026-05-05-design-recipe-extract-design.md`.

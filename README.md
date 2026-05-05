@@ -43,6 +43,7 @@ The init wizard detects your stack, picks an adapter (`react-shadcn`, `astro`, `
 - `/design-init` — interactive wizard, bootstraps design system in project
 - `/design-skin <name>` — swap palette (4-source lookup: project → user global → bundled → awesome-design-md)
 - `/design-tokens <action>` — list/add/update/remove individual tokens
+- `/design-recipe extract <url>` — extract a recipe from a URL (HTML + screenshot via Chrome MCP)
 - `/design-settings-page` — scaffold runtime settings UI
 
 ### Generators
@@ -115,9 +116,7 @@ MIT. See `LICENSE` and `NOTICE`.
 
 ## Status
 
-v0.1.0 — initial public release. Roadmap (filed as GitHub issues after release):
+v0.2.0 — `/design-recipe extract` shipped. Roadmap (filed as GitHub issues):
 
 - Monorepo / multi-stack adapter routing
-- Adapter migration via `/design-init --migrate`
-- `/design-recipe extract <url>` agent
 - Settings page live two-way write-back via Vite plugin
