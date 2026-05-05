@@ -283,3 +283,81 @@ function parseFontPrimary(raw: string): string {
   const first = raw.split(',')[0].trim();
   return first.replace(/^['"]|['"]$/g, '');
 }
+
+async function atomicWrite(filePath: string, contents: string): Promise<void> {
+  const tmp = filePath + '.tmp';
+  await writeFile(tmp, contents, 'utf8');
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      await rename(tmp, filePath);
+      return;
+    } catch (e: any) {
+      lastErr = e;
+      if (e?.code !== 'EBUSY' && e?.code !== 'EPERM' && e?.code !== 'EACCES') throw e;
+      await new Promise(r => setTimeout(r, 50));
+    }
+  }
+  throw lastErr;
+}
+
+export async function writeTokens(themePath: string, mode: Mode, colors: ColorTokens, font?: string): Promise<WriteResult> {
+  let raw: string;
+  try { raw = await readFile(themePath, 'utf8'); }
+  catch (e) { return { ok: false, error: 'read_failed', message: String(e) }; }
+
+  const blocks = scanTopLevelBlocks(raw);
+  const targetSelector = mode === 'light' ? ':root' : '.dark';
+  const targets = blocks.filter(b => b.selector === targetSelector && blockContainsManagedToken(raw, b));
+
+  if (targets.length === 0) return { ok: false, error: mode === 'light' ? 'no_root_block' : 'no_dark_block', message: `No ${targetSelector} block with managed tokens.` };
+  if (targets.length > 1) return { ok: false, error: mode === 'light' ? 'ambiguous_root' : 'ambiguous_dark', message: `Multiple ${targetSelector} blocks with managed tokens.` };
+
+  const block = targets[0];
+  const bodyStart = block.bodyStart;
+  const bodyEnd = block.bodyEnd;
+  const body = raw.slice(bodyStart, bodyEnd);
+  const decls = scanDeclarations(body);
+
+  const wantedReplacements = new Map<string, string>();
+  for (const k of MANAGED_COLOR_KEYS) wantedReplacements.set(k, colors[k]);
+  if (mode === 'light' && font !== undefined) wantedReplacements.set('font-primary', formatFontPrimary(font));
+
+  const allKeys: readonly string[] = mode === 'light' ? [...MANAGED_COLOR_KEYS, 'font-primary'] : MANAGED_COLOR_KEYS;
+
+  let newBody = body;
+  const orderedExisting = decls
+    .filter(d => wantedReplacements.has(d.name))
+    .sort((a, b) => b.valueStart - a.valueStart);
+  for (const d of orderedExisting) {
+    const newValue = wantedReplacements.get(d.name)!;
+    newBody = newBody.slice(0, d.valueStart) + newValue + newBody.slice(d.valueEnd);
+    wantedReplacements.delete(d.name);
+  }
+
+  if (wantedReplacements.size > 0) {
+    const trailingMatch = newBody.match(/(\s*)$/);
+    const trailing = trailingMatch?.[1] ?? '';
+    const insertAt = newBody.length - trailing.length;
+    const missing = Array.from(wantedReplacements.entries())
+      .filter(([k]) => allKeys.includes(k))
+      .map(([k, v]) => `\n  --${k}: ${v};`)
+      .join('');
+    newBody = newBody.slice(0, insertAt) + missing + newBody.slice(insertAt);
+  }
+
+  const newRaw = raw.slice(0, bodyStart) + newBody + raw.slice(bodyEnd);
+
+  try { await atomicWrite(themePath, newRaw); }
+  catch (e) { return { ok: false, error: 'write_failed', message: String(e) }; }
+
+  const reread = await readTokens(themePath);
+  if (!reread.ok) return { ok: false, error: 'write_failed', message: 'Wrote file but failed to re-read: ' + reread.message };
+  return { ok: true, tokens: reread.tokens };
+}
+
+function formatFontPrimary(name: string): string {
+  const needsQuotes = /[^a-zA-Z0-9-]/.test(name);
+  const quoted = needsQuotes ? `'${name}'` : name;
+  return `${quoted}, system-ui, -apple-system, BlinkMacSystemFont, sans-serif`;
+}
