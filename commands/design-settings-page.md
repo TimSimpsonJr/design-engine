@@ -168,7 +168,7 @@ No supporting files. The HTML page references `./styles/theme.css` directly — 
 
 Applies only when `<adapter>` is `react-shadcn` AND `writeCapable === "direct"`.
 
-Skip the existing Step 6 output path and Step 4-5 token-substitution logic for this case. Direct mode uses a different scaffold — no per-template token substitution, no route file. (Snippet-mode adapters like `plain-css` continue using the original logic.)
+Skip the existing Step 6 output path and Step 4-5 token-substitution logic for this case. Direct mode uses a different scaffold — no per-template token substitution, no route file. (Snippet-mode adapters like `plain-css` continue using the original logic. The sveltekit direct-mode path is handled separately in Step 7.6.)
 
 For react-shadcn direct mode, write four files into the user's project (paths relative to project root):
 
@@ -245,6 +245,25 @@ Add this to your config:
   // Inside defineConfig({ integrations: [...] }):
   designEngine()
 \`\`\`
+## Step 7.7: For sveltekit direct mode, set up live write-back files
+
+Applies only when `<adapter>` is `sveltekit` AND `writeCapable === "direct"`.
+
+Skip the Step 4-5 token-substitution logic for this case. Direct mode uses a different scaffold — no per-template hex defaults to rewrite. The page reads tokens from the server at runtime via `GET /__design/api/tokens`.
+
+For sveltekit direct mode, write three files into the user's project (paths relative to project root):
+
+1. `src/lib/server/design-engine/theme-io.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/sveltekit/templates/theme-io.ts`. Server-only helper. Placing it under `$lib/server/` ensures SvelteKit excludes it from the client bundle.
+2. `src/routes/__design/api/tokens/+server.ts` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/sveltekit/templates/api-tokens-server.ts`. Its `import` of `$lib/server/design-engine/theme-io` matches the path above.
+3. `src/routes/__design/+page.svelte` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/sveltekit/templates/settings-page.svelte`. This is the direct-mode page; it replaces the snippet-mode template that Step 6 would otherwise write.
+
+SvelteKit auto-discovers `+server.ts` and `+page.svelte` files — no config patching needed.
+
+The `+server.ts` handler gates on `dev` from `$app/environment`. In production it returns 404, which fail-closes the API and surfaces a load error in the page. The optional `+page.ts` dev guard described in Step 7 (sveltekit) is no longer needed for fail-closed behavior, though you may still write it as belt-and-braces.
+
+The handler resolves `theme.css` and `fonts.css` relative to `process.cwd()` at the paths `src/lib/styles/theme.css` and `src/lib/styles/fonts.css` (matching sveltekit's `theme.targetPath`). If the project keeps theme files at a different location, edit the `DEFAULT_THEME` and `DEFAULT_FONTS` constants in the copied `+server.ts`.
+
+If `src/lib/styles/theme.css` does not exist, warn the user — the API will return a parse error until `theme.css` is in place with a `:root` block containing managed tokens. Suggest running `/design-init` first.
 
 ## Step 8: Update config marker
 
@@ -267,13 +286,15 @@ Dev gate:   <devGate from manifest, or 'none'>
 
 How to access:
 - react-shadcn (direct mode): run `npm run dev`, visit http://localhost:5173/__design/ — edits write back live to src/styles/theme.css
-- Other web (astro / sveltekit): run `npm run dev`, visit <routePath> — edits produce a copyable CSS snippet
+- sveltekit (direct mode): run `npm run dev`, visit http://localhost:5173/__design — edits write back live to src/lib/styles/theme.css via dev-only +server.ts
+- Other web (astro): run `npm run dev`, visit <routePath> — edits produce a copyable CSS snippet
 - Obsidian (obsidian-css): register the settings tab in onload() (see instructions above), reload plugin, open Obsidian Settings → <Plugin Name>
 - plain-css: open <output-path> in a browser
 
-Note: For snippet-mode web adapters (astro, sveltekit), edits in the UI produce
-a copyable CSS snippet. Paste back into theme.css to apply. react-shadcn is now
-direct mode — edits persist automatically via the dev-only Vite plugin.
+Note: For snippet-mode web adapters (astro), edits in the UI produce a copyable
+CSS snippet — paste back into theme.css to apply. react-shadcn (Vite plugin)
+and sveltekit (+server.ts endpoint) are direct-mode — edits persist
+automatically while the dev server is running.
 ```
 
 ## Notes for Claude
@@ -283,8 +304,8 @@ direct mode — edits persist automatically via the dev-only Vite plugin.
 - For Next.js detection in react-shadcn: read `package.json` and check for `next`. Then check if `src/app/` exists (app router) vs `src/pages/` (pages router). When in doubt, ask.
 - The `${CLAUDE_PLUGIN_ROOT}` variable resolves to the design-engine plugin's install directory.
 - `writeCapable` semantics (target enum: `"direct" | "snippet" | "none"`):
-  - `"direct"` — UI writes back to disk live (react-shadcn via dev-only Vite plugin; obsidian-css via PluginSettingTab API — manifest may still report `true`, treat as `"direct"`)
-  - `"snippet"` — UI shows generated CSS, copy/download buttons; user pastes manually (astro, sveltekit, plain-css)
+  - `"direct"` — UI writes back to disk live (react-shadcn via dev-only Vite plugin; sveltekit via dev-only `+server.ts` endpoint; obsidian-css via PluginSettingTab API — manifest may still report `true`, treat as `"direct"`)
+  - `"snippet"` — UI shows generated CSS, copy/download buttons; user pastes manually (astro, plain-css)
   - `"none"` — no settings page (e.g., `tailwind-v4` base adapter — manifest may still report `false`, treat as `"none"`)
 - The `tailwind-v4` adapter does not provide a settings page — frameworks that extend it (`react-shadcn`, `astro`, `sveltekit`) provide their own.
 - Don't fail loudly if a single skin token is missing — fall back to the template's existing default and continue.

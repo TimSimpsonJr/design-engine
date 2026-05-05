@@ -52,7 +52,12 @@ adapters/                                      Stack-specific templates + theme 
   sveltekit/                                   SvelteKit + Tailwind v4 adapter (Svelte 5 runes)
     manifest.json
     README.md
-    templates/{component.svelte, +page.svelte, settings-page.svelte}
+    templates/
+      component.svelte                             Primitive component scaffold
+      +page.svelte                                 Page scaffold (recipe-driven)
+      settings-page.svelte                         Direct-mode token editor (Svelte 5 runes; light/dark, font picker, autosave)
+      theme-io.ts                                  Surgical theme.css parser/writer (server-only, copied verbatim from react-shadcn)
+      api-tokens-server.ts                         Dev-gated +server.ts content (GET/POST /__design/api/tokens)
   obsidian-css/                                Obsidian plugin theme adapter
     manifest.json
     README.md

@@ -11,7 +11,7 @@
     "settingsPage": "templates/settings-page.svelte"
   },
   "settingsPage": {
-    "writeCapable": "snippet",
+    "writeCapable": "direct",
     "devGate": "import.meta.env.DEV",
     "routePath": "/__design"
   },

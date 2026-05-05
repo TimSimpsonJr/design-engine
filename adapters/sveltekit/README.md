@@ -17,7 +17,13 @@ Extends `tailwind-v4` for CSS layer. Adds `.svelte` component templates targetin
 
 ## Settings page
 
-`writeCapable: true` — runtime token edits write back via dev-gated `+server.ts` endpoint. See `/design-settings-page` command.
+`writeCapable: "direct"` — runtime token edits write back live to `src/lib/styles/theme.css` via a dev-gated `+server.ts` endpoint at `/__design/api/tokens`. The page itself lives at `/__design`. See `/design-settings-page` command.
+
+Templates:
+
+- `templates/settings-page.svelte` — Svelte 5 runes UI (light/dark editor, font picker, demo, status indicator, 250 ms autosave debounce).
+- `templates/api-tokens-server.ts` — installed at `src/routes/__design/api/tokens/+server.ts`. Gated by `dev` from `$app/environment` — returns 404 in production.
+- `templates/theme-io.ts` — installed at `src/lib/server/design-engine/theme-io.ts`. Surgical CSS scanner + atomic file write (Windows-safe). Server-only by virtue of the `$lib/server/` path.
 
 ## Attribution
 
