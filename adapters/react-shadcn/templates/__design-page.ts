@@ -7,7 +7,8 @@ type Mode = 'light' | 'dark';
 type ColorTokens = Record<ColorKey, string>;
 type TokenSet = { light: ColorTokens; dark: ColorTokens; font: string };
 
-type FontEntry = { family: string; category: string; weights?: number[] };
+type FontEntry = { family: string; category: string; weights?: number[]; axisRange?: string };
+type CatalogState = 'idle' | 'loading' | 'ready' | 'failed';
 
 const OFFLINE_FONTS: FontEntry[] = [
   { family: 'Inter', category: 'sans-serif', weights: [400, 500, 600, 700, 800] },
@@ -25,6 +26,13 @@ const OFFLINE_FONTS: FontEntry[] = [
   { family: 'Outfit', category: 'sans-serif', weights: [400, 500, 600, 700] },
   { family: 'Albert Sans', category: 'sans-serif', weights: [400, 500, 600, 700] },
 ];
+
+const GOOGLE_FONTS_METADATA_URL = 'https://fonts.google.com/metadata/fonts';
+const CATALOG_CACHE_KEY = 'de-google-fonts-catalog-v1';
+
+let fontEntries: FontEntry[] = OFFLINE_FONTS;
+let catalogState: CatalogState = 'idle';
+let catalogPromise: Promise<FontEntry[]> | null = null;
 
 let tokens: TokenSet | null = null;
 let mode: Mode = 'light';
@@ -209,6 +217,86 @@ function buildColorEditor(): HTMLElement {
   return card;
 }
 
+async function loadGoogleFontsCatalog(): Promise<FontEntry[]> {
+  if (catalogPromise) return catalogPromise;
+
+  try {
+    const cached = sessionStorage.getItem(CATALOG_CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached) as FontEntry[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        fontEntries = parsed;
+        catalogState = 'ready';
+        return parsed;
+      }
+    }
+  } catch { /* corrupt cache — refetch */ }
+
+  catalogPromise = (async () => {
+    const res = await fetch(GOOGLE_FONTS_METADATA_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const stripped = stripJsonPrefix(text);
+    const data = JSON.parse(stripped);
+    const list = Array.isArray(data?.familyMetadataList) ? data.familyMetadataList : [];
+    const mapped = list
+      .map(mapMetadataEntry)
+      .filter((e: FontEntry | null): e is FontEntry => e !== null);
+    if (mapped.length === 0) throw new Error('Empty catalog');
+    try { sessionStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(mapped)); } catch { /* quota — skip cache */ }
+    return mapped;
+  })();
+  return catalogPromise;
+}
+
+function stripJsonPrefix(raw: string): string {
+  // Google's XSSI prefix is `)]}'` followed by a newline, but be tolerant of variants.
+  const trimmed = raw.replace(/^﻿/, '');
+  const match = trimmed.match(/^[\s\)\]\}'"]*?(\{|\[)/);
+  if (match && match.index === 0) return trimmed.slice(match[0].length - 1);
+  return trimmed;
+}
+
+function mapMetadataEntry(raw: any): FontEntry | null {
+  if (!raw || typeof raw.family !== 'string') return null;
+  const family = raw.family;
+  const category = normalizeCategory(raw.category);
+
+  const axes = Array.isArray(raw.axes) ? raw.axes : [];
+  const wght = axes.find((a: any) => a?.tag === 'wght' && typeof a.min === 'number' && typeof a.max === 'number');
+  if (wght) {
+    return { family, category, axisRange: `${Math.round(wght.min)}..${Math.round(wght.max)}` };
+  }
+
+  const weights: number[] = [];
+  if (raw.fonts && typeof raw.fonts === 'object') {
+    const seen = new Set<number>();
+    for (const key of Object.keys(raw.fonts)) {
+      const n = parseInt(key, 10);
+      if (!Number.isNaN(n) && n >= 100 && n <= 1000 && !seen.has(n)) {
+        seen.add(n);
+        weights.push(n);
+      }
+    }
+    weights.sort((a, b) => a - b);
+  }
+
+  // Single regular-weight fonts (Pacifico, etc.) want no `wght` param at all.
+  if (weights.length === 0 || (weights.length === 1 && weights[0] === 400)) {
+    return { family, category };
+  }
+  return { family, category, weights };
+}
+
+function normalizeCategory(raw: any): string {
+  if (typeof raw !== 'string' || !raw) return 'sans-serif';
+  return raw.toLowerCase().replace(/_/g, '-');
+}
+
+function fontImportFor(f: FontEntry): { name: string; weights?: number[]; axisRange?: string } {
+  return { name: f.family, weights: f.weights, axisRange: f.axisRange };
+}
+
 function buildFontPicker(): HTMLElement {
   const card = document.createElement('div');
   card.className = 'de-card';
@@ -232,9 +320,21 @@ function buildFontPicker(): HTMLElement {
 
   const renderSuggestions = (q: string) => {
     while (suggestions.firstChild) suggestions.removeChild(suggestions.firstChild);
-    const ql = q.toLowerCase();
-    const matches = OFFLINE_FONTS.filter(f => f.family.toLowerCase().includes(ql)).slice(0, 20);
-    if (matches.length === 0) { suggestions.hidden = true; return; }
+    const ql = q.toLowerCase().trim();
+    const matches = fontEntries.filter(f => f.family.toLowerCase().includes(ql)).slice(0, 20);
+
+    if (catalogState === 'loading') {
+      const hint = document.createElement('div');
+      hint.className = 'de-font-cat';
+      hint.style.cssText = 'padding: 8px 12px;';
+      hint.textContent = 'Loading Google Fonts catalog…';
+      suggestions.appendChild(hint);
+    }
+
+    if (matches.length === 0 && catalogState !== 'loading') {
+      suggestions.hidden = true;
+      return;
+    }
     suggestions.hidden = false;
     for (const f of matches) {
       const btn = document.createElement('button');
@@ -249,7 +349,7 @@ function buildFontPicker(): HTMLElement {
       btn.addEventListener('mousedown', e => {
         e.preventDefault();
         input.value = f.family;
-        updateFont(f.family, { name: f.family, weights: f.weights });
+        updateFont(f.family, fontImportFor(f));
         suggestions.hidden = true;
         flushSave();
       });
@@ -257,7 +357,25 @@ function buildFontPicker(): HTMLElement {
     }
   };
 
-  input.addEventListener('focus', () => renderSuggestions(input.value));
+  const ensureCatalog = async () => {
+    if (catalogState === 'ready' || catalogState === 'failed' || catalogState === 'loading') return;
+    catalogState = 'loading';
+    renderSuggestions(input.value);
+    try {
+      const entries = await loadGoogleFontsCatalog();
+      fontEntries = entries;
+      catalogState = 'ready';
+    } catch {
+      // Stay on OFFLINE_FONTS — already the default.
+      catalogState = 'failed';
+    }
+    if (document.activeElement === input) renderSuggestions(input.value);
+  };
+
+  input.addEventListener('focus', () => {
+    renderSuggestions(input.value);
+    void ensureCatalog();
+  });
   input.addEventListener('input', () => {
     renderSuggestions(input.value);
     // Update local preview only; defer save until blur or suggestion pick.
@@ -269,8 +387,8 @@ function buildFontPicker(): HTMLElement {
     }
   });
   input.addEventListener('blur', () => {
-    const match = OFFLINE_FONTS.find(f => f.family.toLowerCase() === input.value.toLowerCase());
-    if (match) updateFont(match.family, { name: match.family, weights: match.weights });
+    const match = fontEntries.find(f => f.family.toLowerCase() === input.value.toLowerCase());
+    if (match) updateFont(match.family, fontImportFor(match));
     else updateFont(input.value, null);
     setTimeout(() => { suggestions.hidden = true; }, 150);
     flushSave();
