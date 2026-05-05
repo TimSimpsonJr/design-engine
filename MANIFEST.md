@@ -41,7 +41,14 @@ adapters/                                      Stack-specific templates + theme 
   astro/                                       Astro + Tailwind v4 adapter
     manifest.json
     README.md
-    templates/{component.astro, page.astro, settings-page.astro}
+    templates/
+      component.astro                              Single-component template
+      page.astro                                   Page-shape template (recipe-driven)
+      settings-page.astro                          Legacy snippet-mode token editor (kept for reference; direct mode uses files below)
+      theme-io.ts                                  Surgical theme.css parser/writer (copied from react-shadcn template)
+      astro-integration-design-engine.ts           Dev-only Astro integration that registers Vite middleware owning /__design/*
+      __design-page.html                           Settings page HTML shell (copied from react-shadcn)
+      __design-page.ts                             Settings page logic (copied from react-shadcn)
   sveltekit/                                   SvelteKit + Tailwind v4 adapter (Svelte 5 runes)
     manifest.json
     README.md
@@ -116,7 +123,7 @@ README.md                                      User-facing intro, quick start, c
 
 **Adapter inheritance.** `react-shadcn`, `astro`, `sveltekit` all declare `extends: "tailwind-v4"` in their manifests, meaning their settings-page generation reads from both the framework adapter's templates and tailwind-v4's theme files.
 
-**Settings-page mode (`writeCapable`).** Per-adapter manifest field declares whether the settings UI can write back to disk. Target enum: `"direct" | "snippet" | "none"`. `react-shadcn` is now `"direct"` (live write-back via the dev-only Vite plugin in `templates/vite-plugin-design-engine.ts` + `theme-io.ts`). The remaining adapters keep their legacy values pending follow-up: `obsidian-css` reports `true` (treat as `"direct"`), `astro`/`sveltekit`/`plain-css` report `"snippet"` (copy/paste output), `tailwind-v4` reports `false` (treat as `"none"`). The `/design-settings-page` command normalizes the legacy values at read time.
+**Settings-page mode (`writeCapable`).** Per-adapter manifest field declares whether the settings UI can write back to disk. Target enum: `"direct" | "snippet" | "none"`. `react-shadcn` is `"direct"` (live write-back via the dev-only Vite plugin in `templates/vite-plugin-design-engine.ts` + `theme-io.ts`). `astro` is also `"direct"` (live write-back via dev-only Astro integration in `templates/astro-integration-design-engine.ts` + `theme-io.ts`, hooked through `astro:server:setup` onto the underlying Vite dev server). The remaining adapters keep their legacy values pending follow-up: `obsidian-css` reports `true` (treat as `"direct"`), `sveltekit`/`plain-css` report `"snippet"` (copy/paste output), `tailwind-v4` reports `false` (treat as `"none"`). The `/design-settings-page` command normalizes the legacy values at read time.
 
 **styleseed porting.** All `react-shadcn/components/ui/*.tsx` and `react-shadcn/components/patterns/*.tsx` files retain their original `bitjaru/styleseed` MIT header comments and add a porting note. NOTICE file at repo root documents the upstream attribution.
 
