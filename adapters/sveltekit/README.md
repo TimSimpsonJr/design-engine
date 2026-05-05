@@ -21,7 +21,7 @@ Extends `tailwind-v4` for CSS layer. Adds `.svelte` component templates targetin
 
 Templates:
 
-- `templates/settings-page.svelte` — Svelte 5 runes UI (light/dark editor, font picker, demo, status indicator, 250 ms autosave debounce).
+- `templates/settings-page.svelte` — Svelte 5 runes UI (light/dark editor, font picker with Google Fonts catalog autocomplete, demo, status indicator, 250 ms autosave debounce).
 - `templates/api-tokens-server.ts` — installed at `src/routes/__design/api/tokens/+server.ts`. Gated by `dev` from `$app/environment` — returns 404 in production.
 - `templates/theme-io.ts` — installed at `src/lib/server/design-engine/theme-io.ts`. Surgical CSS scanner + atomic file write (Windows-safe). Server-only by virtue of the `$lib/server/` path.
 
