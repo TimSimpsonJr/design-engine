@@ -75,7 +75,7 @@ skills/                                        Auto-loading rule sets
   composition-recipes/SKILL.md                   5 page-shape templates for new-page scaffolding
 
 commands/                                      Slash command implementations
-  design-init.md                                 Interactive wizard, bootstraps design system in project
+  design-init.md                                 Interactive wizard, bootstraps design system in project; supports --migrate for adapter swap (preserves skin/recipe/font/tokens)
   design-skin.md                                 Swap palette + fonts (4-source skin lookup); save current as named skin
   design-tokens.md                               List/add/update/remove individual tokens
   design-settings-page.md                        Scaffold runtime settings UI per active adapter
@@ -106,6 +106,7 @@ docs/
   plans/
     2026-05-04-design-engine-plugin-design.md    Original plugin design doc (lifecycles, decisions)
     2026-05-04-design-engine-implementation.md   Phased implementation plan (Phases 1-7)
+    2026-05-05-design-init-migrate-design.md     Design for /design-init --migrate (issue #2)
 
 tests/                                         Unit tests for theme-io helper template
   package.json                                   Node --test runner config (devDeps: typescript, @types/node)
@@ -129,6 +130,8 @@ README.md                                      User-facing intro, quick start, c
 **Adapter inheritance.** `react-shadcn`, `astro`, `sveltekit` all declare `extends: "tailwind-v4"` in their manifests, meaning their settings-page generation reads from both the framework adapter's templates and tailwind-v4's theme files.
 
 **Settings-page mode (`writeCapable`).** Per-adapter manifest field declares whether the settings UI can write back to disk. Enum: `"direct" | "snippet" | "none"`. Current values: `react-shadcn`, `astro`, `sveltekit`, and `obsidian-css` are `"direct"` (live write-back — react-shadcn via dev-only Vite plugin in `templates/vite-plugin-design-engine.ts` + `theme-io.ts`; astro via dev-only Astro integration through `astro:server:setup`; sveltekit via dev-only `+server.ts` endpoint at `/__design/api/tokens`; obsidian-css via the Obsidian PluginSettingTab API). `plain-css` is `"snippet"` (copy/paste output — no dev server). `tailwind-v4` is `"none"` (base adapter, no settings page).
+
+**Adapter migration (`/design-init --migrate`).** Switches a project from one web adapter to another while preserving skin/recipe/font/customized-tokens. Out of scope: obsidian-css migration (settings tab is too fragile to move automatically); generating new settings-page artifacts (user runs `/design-settings-page` separately); auto-reverting old build-config patches (always manual). Cleanup uses `oldArtifacts - newArtifacts` set difference so shared files (e.g., `theme-io.ts` between react-shadcn and astro) survive overwrite. Old theme files are never auto-deleted because `theme-io`'s `writeTokens()` only preserves user-added unmanaged CSS in-place — they always land in a manual-cleanup list. Adds optional `migratedAt` and `migratedFrom` fields to `.design-rules/config.json`.
 
 **styleseed porting.** All `react-shadcn/components/ui/*.tsx` and `react-shadcn/components/patterns/*.tsx` files retain their original `bitjaru/styleseed` MIT header comments and add a porting note. NOTICE file at repo root documents the upstream attribution.
 
