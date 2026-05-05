@@ -177,9 +177,9 @@ For react-shadcn direct mode, write four files into the user's project (paths re
 3. `src/design-engine/__design-page.html` — copy from `${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/__design-page.html`.
 4. `src/design-engine/__design-page.js` — compile from `${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/__design-page.ts`. Use:
    ```
-   npx esbuild --bundle --format=esm --target=es2022 --platform=browser --outfile=src/design-engine/__design-page.js "${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/__design-page.ts"
+   npx --yes esbuild --bundle --format=esm --target=es2022 --platform=browser --outfile=src/design-engine/__design-page.js "${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/__design-page.ts"
    ```
-   esbuild is normally installed transitively with Vite. If `npx esbuild` fails (esbuild not found), tell the user: "esbuild not available — run `npm install` to install dependencies, then re-run `/design-settings-page`." Don't auto-install — let the user handle it.
+   esbuild is normally installed transitively with Vite. If `npx --yes esbuild` fails (esbuild not found), tell the user: "esbuild not available — run `npm install` to install dependencies, then re-run `/design-settings-page`." Don't auto-install — let the user handle it.
 
 The Vite plugin loads `__design-page.html` and `__design-page.js` at runtime via `fs.readFile`, resolved relative to the plugin file's own directory (`import.meta.url`). They MUST be co-located.
 
