@@ -315,7 +315,7 @@ Use Write to create `agents/recipe-extractor.md` with this content:
 ---
 name: recipe-extractor
 description: Extracts a structured recipe JSON from a URL by fetching HTML, capturing screenshots at desktop (1440px) and mobile (390px) widths, learning the existing vocabulary from bundled and project recipes, and identifying sections via multimodal visual analysis. Returns a recipe object plus any newly-introduced vocabulary names.
-tools: Read, Write, Edit, Grep, Glob, Bash, WebFetch, mcp__Claude_in_Chrome__tabs_create_mcp, mcp__Claude_in_Chrome__tabs_context_mcp, mcp__Claude_in_Chrome__navigate, mcp__Claude_in_Chrome__resize_window, mcp__Claude_in_Chrome__computer, mcp__Claude_in_Chrome__tabs_close_mcp
+tools: Read, WebFetch, mcp__Claude_in_Chrome__tabs_create_mcp, mcp__Claude_in_Chrome__tabs_context_mcp, mcp__Claude_in_Chrome__navigate, mcp__Claude_in_Chrome__resize_window, mcp__Claude_in_Chrome__computer, mcp__Claude_in_Chrome__tabs_close_mcp
 ---
 
 # Recipe Extractor Agent
@@ -403,7 +403,7 @@ Hold the extracted info in memory as `htmlSignal`. Used in §4 for kind detectio
 1. Call `tabs_context_mcp` with `createIfEmpty: true` to ensure the MCP tab group exists. Note the existing tab ID list as `existingTabIds`.
 2. Call `tabs_create_mcp` to create a new tab.
 3. Call `tabs_context_mcp` again. The new tab is the one whose ID is not in `existingTabIds`. Capture this as `tabId`. (Don't assume `tabs_create_mcp`'s return shape — discover the new tab from the context diff.)
-4. Track `tabId` for cleanup. Wrap the remainder of the capture in a try-finally pattern: on any failure between here and step 8, still attempt `tabs_close_mcp` with `tabId` before returning the error.
+4. Track `tabId`. Treat tab cleanup as a strong responsibility — every code path that returns from this agent (success in §8, error in §3a, error in §7) must call `tabs_close_mcp` first if `tabId` was set. Note: this is best-effort — Claude has no real try-finally, only the discipline to remember. If the agent is interrupted mid-flight (token limit, harness timeout, parent cancellation), the tab may persist until the user closes Chrome manually. That's an accepted limitation of agent-based control flow.
 5. Call `navigate` with `url` and `tabId`. Then call `computer` with `action: "wait", duration: 3, tabId` to give the page time to settle (more for JS-heavy sites — bump to 5-8 seconds if the screenshot in step 6 looks empty).
 6. **Desktop capture** (skip if `viewportMode === "mobile"`):
    - Call `resize_window` with `width: 1440, height: 900, tabId`.
@@ -411,7 +411,7 @@ Hold the extracted info in memory as `htmlSignal`. Used in §4 for kind detectio
 7. **Mobile capture** (skip if `viewportMode === "desktop"`):
    - Call `resize_window` with `width: 390, height: 844, tabId`.
    - Call `computer` with `action: "screenshot", tabId`. Hold as `mobileScreenshot`.
-8. Call `tabs_close_mcp` with `tabId` to clean up. (Always run this — even if step 5/6/7 failed, per step 4's try-finally.)
+8. Call `tabs_close_mcp` with `tabId` to clean up. (Always run this — see step 4's responsibility note.)
 
 If any Chrome MCP call fails:
 - Always run `tabs_close_mcp` for `tabId` before returning, if `tabId` was set.
@@ -426,6 +426,8 @@ If any Chrome MCP call fails:
 Use the Read tool on `screenshotOverride`. The Read tool supports image files (PNG/JPG) and presents them as visual content for multimodal analysis. Hold the result as `desktopScreenshot`. `mobileScreenshot` is null.
 
 Set `viewportsCaptured = ["1440px"]` as a best assumption — the user knows what they captured. If they passed a mobile shot, `mobileBehavior` fields cannot be filled and will be omitted, but the recipe is still produced.
+
+Always add a note to `notes[]`: `"User-provided screenshot; assumed 1440px viewport. Adjust the recipe's viewportsCaptured field if the screenshot was a different width."` This shows up in the command's summary so the user can correct provenance if needed.
 
 If Read fails (file not found, unreadable), return:
 
@@ -551,7 +553,7 @@ If `useChromeMcp === true` and you observed any of these in the desktop screensh
 
 If none of these are present, omit the `authenticated` field entirely (don't set to false).
 
-If `useChromeMcp === false`, never set `authenticated` (you don't have signal).
+If `useChromeMcp === false`, never set `authenticated` — even if the screenshot shows logged-in chrome, we don't know whether *re-extracting* the same URL would inherit a session. Skip the field rather than overpromise.
 
 ## §6 Build the recipe object
 
@@ -563,7 +565,7 @@ Construct the recipe in this exact shape (fields marked with `// optional` may b
   "version": 1,
   "kind": "<kind>",
   "sourceUrl": "<url>",
-  "extractedAt": "<YYYY-MM-DD UTC date>",
+  "extractedAt": "<YYYY-MM-DD>",
   "viewportsCaptured": ["1440px", "390px"],
   "authenticated": true,            // optional — include only when §5 detects authentication
   "sections": [
@@ -578,6 +580,7 @@ Construct the recipe in this exact shape (fields marked with `// optional` may b
 
 Field rules:
 - `name`, `version`, `kind`, `sourceUrl`, `extractedAt`, `viewportsCaptured` are always present.
+- `extractedAt` is the current date in UTC, formatted as `YYYY-MM-DD` (no time component, no timezone suffix).
 - `authenticated` only present if §5 detected it.
 - `sections[].mobileBehavior` only present if §4e wrote a string for that section.
 - `sections[].props` is always present (may be `{}` for content-bare sections like a divider band, but those should be rare).
@@ -604,10 +607,10 @@ Handle responses:
 - `c` / cancel → return:
 
   ```json
-  { "error": "Extraction cancelled by user during propose-and-name.", "stage": "identify" }
+  { "error": "Extraction cancelled by user during propose-and-name.", "stage": "cancel" }
   ```
 
-  This causes the calling command to surface the cancellation and write nothing.
+  Stage `cancel` is distinct from a system failure — it lets the calling command (and any future telemetry) tell the difference between "render broke" and "user backed out". The calling command surfaces the cancellation and writes nothing.
 
 If `unattended === true`, skip this interaction entirely. New types are kept as proposed.
 
@@ -628,7 +631,7 @@ Print this as a single fenced JSON code block. Nothing else outside the code blo
 Wherever you bail out, return:
 
 ```json
-{ "error": "<human-readable message>", "stage": "<one of: fetch | render | identify | format>" }
+{ "error": "<human-readable message>", "stage": "<one of: fetch | render | identify | format | cancel>" }
 ```
 
 Stages:
@@ -636,6 +639,7 @@ Stages:
 - `render` — Chrome MCP failed and no fallback succeeded.
 - `identify` — could not identify any sections (page may be JS-only with delayed render, or use a layout the agent could not parse).
 - `format` — internal: failed to construct valid JSON from the inputs.
+- `cancel` — user cancelled at the propose-and-name prompt (§7). Distinct from system failures so the caller can surface "cancelled" vs "broken" cleanly.
 
 Never write files yourself. The calling command handles all writes.
 ````
