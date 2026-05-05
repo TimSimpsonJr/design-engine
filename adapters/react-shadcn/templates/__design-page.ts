@@ -27,8 +27,11 @@ const OFFLINE_FONTS: FontEntry[] = [
   { family: 'Albert Sans', category: 'sans-serif', weights: [400, 500, 600, 700] },
 ];
 
-const GOOGLE_FONTS_METADATA_URL = 'https://fonts.google.com/metadata/fonts';
-const CATALOG_CACHE_KEY = 'de-google-fonts-catalog-v1';
+// Same-origin proxy installed by the dev-only Vite plugin / Astro integration /
+// SvelteKit +server.ts. The browser-side fetch must NOT hit fonts.google.com
+// directly — that endpoint is same-origin only and CORS-blocks browser fetches.
+const GOOGLE_FONTS_PROXY_URL = '/__design/api/google-fonts';
+const CATALOG_CACHE_KEY = 'de-google-fonts-catalog-v2';
 
 let fontEntries: FontEntry[] = OFFLINE_FONTS;
 let catalogState: CatalogState = 'idle';
@@ -233,64 +236,14 @@ async function loadGoogleFontsCatalog(): Promise<FontEntry[]> {
   } catch { /* corrupt cache — refetch */ }
 
   catalogPromise = (async () => {
-    const res = await fetch(GOOGLE_FONTS_METADATA_URL);
+    const res = await fetch(GOOGLE_FONTS_PROXY_URL);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = await res.text();
-    const stripped = stripJsonPrefix(text);
-    const data = JSON.parse(stripped);
-    const list = Array.isArray(data?.familyMetadataList) ? data.familyMetadataList : [];
-    const mapped = list
-      .map(mapMetadataEntry)
-      .filter((e: FontEntry | null): e is FontEntry => e !== null);
-    if (mapped.length === 0) throw new Error('Empty catalog');
-    try { sessionStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(mapped)); } catch { /* quota — skip cache */ }
-    return mapped;
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) throw new Error('Empty catalog');
+    try { sessionStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(data)); } catch { /* quota — skip cache */ }
+    return data as FontEntry[];
   })();
   return catalogPromise;
-}
-
-function stripJsonPrefix(raw: string): string {
-  // Google's XSSI prefix is `)]}'` followed by a newline, but be tolerant of variants.
-  const trimmed = raw.replace(/^﻿/, '');
-  const match = trimmed.match(/^[\s\)\]\}'"]*?(\{|\[)/);
-  if (match && match.index === 0) return trimmed.slice(match[0].length - 1);
-  return trimmed;
-}
-
-function mapMetadataEntry(raw: any): FontEntry | null {
-  if (!raw || typeof raw.family !== 'string') return null;
-  const family = raw.family;
-  const category = normalizeCategory(raw.category);
-
-  const axes = Array.isArray(raw.axes) ? raw.axes : [];
-  const wght = axes.find((a: any) => a?.tag === 'wght' && typeof a.min === 'number' && typeof a.max === 'number');
-  if (wght) {
-    return { family, category, axisRange: `${Math.round(wght.min)}..${Math.round(wght.max)}` };
-  }
-
-  const weights: number[] = [];
-  if (raw.fonts && typeof raw.fonts === 'object') {
-    const seen = new Set<number>();
-    for (const key of Object.keys(raw.fonts)) {
-      const n = parseInt(key, 10);
-      if (!Number.isNaN(n) && n >= 100 && n <= 1000 && !seen.has(n)) {
-        seen.add(n);
-        weights.push(n);
-      }
-    }
-    weights.sort((a, b) => a - b);
-  }
-
-  // Single regular-weight fonts (Pacifico, etc.) want no `wght` param at all.
-  if (weights.length === 0 || (weights.length === 1 && weights[0] === 400)) {
-    return { family, category };
-  }
-  return { family, category, weights };
-}
-
-function normalizeCategory(raw: any): string {
-  if (typeof raw !== 'string' || !raw) return 'sans-serif';
-  return raw.toLowerCase().replace(/_/g, '-');
 }
 
 function fontImportFor(f: FontEntry): { name: string; weights?: number[]; axisRange?: string } {
@@ -329,9 +282,15 @@ function buildFontPicker(): HTMLElement {
       hint.style.cssText = 'padding: 8px 12px;';
       hint.textContent = 'Loading Google Fonts catalog…';
       suggestions.appendChild(hint);
+    } else if (catalogState === 'failed') {
+      const hint = document.createElement('div');
+      hint.className = 'de-font-cat';
+      hint.style.cssText = 'padding: 8px 12px;';
+      hint.textContent = 'Couldn’t load the full Google Fonts catalog. Showing common fonts only.';
+      suggestions.appendChild(hint);
     }
 
-    if (matches.length === 0 && catalogState !== 'loading') {
+    if (matches.length === 0 && catalogState !== 'loading' && catalogState !== 'failed') {
       suggestions.hidden = true;
       return;
     }
