@@ -55,6 +55,7 @@
   --switch-background: #cbced4;
 
   /* === Typography === */
+  --font-primary: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
 
