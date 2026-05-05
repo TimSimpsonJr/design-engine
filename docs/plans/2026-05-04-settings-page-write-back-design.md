@@ -4,6 +4,27 @@
 **Branch:** `feat/settings-page-write-back`
 **Date:** 2026-05-04
 
+## Implementation status (2026-05-04, post-review)
+
+After Codex review of the initial implementation plan revealed several blocking issues (bug-prone CSS parser, missing React route mounting story, scaffold gaps in `/design-settings-page` command), this PR's scope was reduced. The architecture also evolved: instead of a React-mounted route with `@/components/ui/*` imports, the Vite plugin now SERVES the settings page directly as plain HTML + vanilla TypeScript, sidestepping the React route question and the missing-primitives risk.
+
+**Shipping in this PR (`feat/settings-page-write-back`):**
+- Phase A bug fixes (all 5)
+- react-shadcn live write-back (full)
+- Per Codex's tightened approach: span-based surgical writer with comment/string-safe scanner; in-memory live preview via managed `<style>` tag; vanilla TS page served by the plugin
+
+**Deferred to follow-up issues (chips spawned in working session):**
+- §3.x and §4.x for Astro adapter port
+- §3.x and §4.x for SvelteKit adapter port
+- §11 — `/design-skin` font @import extension
+- §9 — manifest enum migration across all 6 adapters
+- Live Google Fonts catalog API (page ships with curated 14-font fallback list only)
+- Richer demo showcase iterations
+
+The design below describes the eventual full state across all adapters; the implementation plan at [`2026-05-04-settings-page-write-back-implementation.md`](2026-05-04-settings-page-write-back-implementation.md) describes only what ships in this PR.
+
+---
+
 ## Problem
 
 The runtime settings page (route `/__design`) is currently snippet-only. Users tweak design tokens in the UI, the page generates a CSS snippet, and they manually copy/paste it back into `theme.css`. The original product promise was live two-way write-back: edit a token → server writes `theme.css` directly → Vite/Astro/SvelteKit HMR repaints across the running app, no paste step.
