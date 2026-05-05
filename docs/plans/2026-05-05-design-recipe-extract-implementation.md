@@ -20,7 +20,7 @@ The feature is split into 4 phases. Each phase boundary produces a usable, valid
 |---|---|---|
 | 1 | Command file scaffolded; arg parsing + project check + Chrome MCP detection work | `/design-recipe extract <url> --dry-run` parses args and reports detected setup, then exits |
 | 2 | Agent file written; full extract flow runs end-to-end | `/design-recipe extract <url> --dry-run` produces a recipe JSON in chat |
-| 3 | Write path + conflict handling + summary | `/design-recipe extract <url>` writes `.design-rules/recipes/<name>.json` |
+| 3 | Write path + conflict handling + `/design-page` reads project recipes | `/design-recipe extract <url>` writes `.design-rules/recipes/<name>.json` and `/design-page <name>` finds it |
 | 4 | MANIFEST + README updated; manual validation against 4 sites | Recipe extraction works on Stripe pricing, Linear, Notion, plus one authenticated page |
 
 **Note on testing:** This is a markdown-driven Claude Code plugin. There is no unit test harness for command/agent prompts — "tests" are manual invocations that produce visible output. Where assertions about prompt behavior matter, they're documented as `Expected:` blocks below.
@@ -104,13 +104,14 @@ Stop.
 
 If present, parse it. You don't need to use any field; this is just a guard so the agent doesn't write into an uninitialized project.
 
-## Step 2: Detect Chrome MCP availability
+## Step 2: Resolve screenshot strategy
 
-Probe whether `mcp__Claude_in_Chrome__*` tools are available in your environment. (You'll know based on whether the tool definitions appeared in your function list.)
+Decide `screenshotMode` based on flag precedence (highest priority first):
 
-- If available → set `useChromeMcp = true`. Will use `tabs_create_mcp`, `navigate`, `resize_window`, and `computer` (action: screenshot) to capture viewports.
-- If unavailable AND `screenshotOverride` is set → use the user-provided screenshot. Set `useChromeMcp = false`, `screenshotMode = "user-provided"`.
-- If unavailable AND no screenshotOverride → prompt the user:
+1. **`screenshotOverride` is set** (user passed `--screenshot=<path>`): `screenshotMode = "user-provided"`, `useChromeMcp = false`. The user-provided screenshot takes precedence over Chrome MCP — if you specified it, you want it used. Do not probe for Chrome MCP.
+2. **Else, probe whether `mcp__Claude_in_Chrome__*` tools are available** in your environment. (You'll know based on whether the tool definitions appeared in your function list.)
+   - If available → `screenshotMode = "chrome-mcp"`, `useChromeMcp = true`. Will use `tabs_create_mcp`, `tabs_context_mcp`, `navigate`, `resize_window`, and `computer` (action: screenshot) to capture viewports.
+3. **Else (Chrome MCP unavailable AND no `--screenshot`):** prompt the user:
 
   ```
   Chrome MCP not detected and no --screenshot provided. Options:
@@ -120,45 +121,82 @@ Probe whether `mcp__Claude_in_Chrome__*` tools are available in your environment
   Type "html" to continue without screenshots, "cancel" to abort, or paste a screenshot path:
   ```
 
-  - Response is a path → use it as `screenshotOverride`. Set `screenshotMode = "user-provided"`.
-  - Response is "html" → set `screenshotMode = "html-only"`. Continue with degraded confidence.
+  - Response is a path → use it as `screenshotOverride`. Set `screenshotMode = "user-provided"`, `useChromeMcp = false`.
+  - Response is "html" → set `screenshotMode = "html-only"`, `useChromeMcp = false`. Continue with degraded confidence.
   - Response is "cancel" or empty → stop, no files written.
+
+After Step 2, exactly one of `screenshotMode ∈ {"chrome-mcp", "user-provided", "html-only"}` is set, and `useChromeMcp` is `true` only for `chrome-mcp`.
 
 ## Step 3: Derive recipe name
 
-If `nameOverride` is set, use it as `recipeName`. Otherwise:
+If `nameOverride` is set, validate it matches `^[a-z0-9][a-z0-9-]*$` (kebab-case, lowercase). If invalid, error: `--name must be kebab-case (lowercase letters, digits, hyphens; must start with a letter or digit).` and stop. Otherwise use it as `recipeName`. Skip the rest of this step.
 
-1. Extract host from URL: `https://stripe.com/pricing` → `stripe.com`
-2. Strip leading `www.` → `stripe.com`
-3. Take the path: `/pricing` → `pricing`. If path is `/` or empty, use `home`.
-4. Combine: `<host>-<path-slug>`. Replace dots and slashes with `-`. Lowercase.
-5. Result: `stripe-com-pricing` → strip the `-com` TLD slug → `stripe-pricing`.
+Otherwise, derive `recipeName` from the URL:
+
+1. **Parse the URL** (use Bash with `python -c` or equivalent if needed):
+   - `protocol` (drop)
+   - `host` — drop a leading `www.`
+   - `port` — drop entirely (e.g., `localhost:3000` → `localhost`)
+   - `path` — keep
+   - `query` and `fragment` — drop entirely (`?foo=bar` and `#section` discarded; they don't represent layout)
+2. **Normalize the host:**
+   - If host is `localhost` or an IP literal (matches `^\d+\.\d+\.\d+\.\d+$` or contains `:` for IPv6), use the literal `localhost` or `<ip>` (replace `.` with `-` and `:` with `-`).
+   - Else split on `.`. If the last segment is a 2-3 letter TLD (`com`, `io`, `net`, `org`, `app`, `co`, `dev`, `ai`, `so`) AND the second-to-last is also a 2-letter ccTLD candidate (`co.uk`, `com.au`), drop the last two segments. Otherwise drop only the last segment.
+   - Examples: `stripe.com` → `stripe`; `linear.app` → `linear`; `www.notion.so` → `notion`; `shop.example.co.uk` → `shop-example`; `app.example.io` → `app-example`.
+3. **Slug the path:**
+   - Strip leading and trailing `/`.
+   - Replace remaining `/` with `-`.
+   - Replace any character not in `[a-z0-9-]` with `-` (lowercase first).
+   - Collapse runs of `-`.
+   - If empty after stripping, use `home`.
+4. **Combine:** `<host-slug>-<path-slug>`. Lowercase. Collapse repeated `-`. Trim leading/trailing `-`.
+5. **Validate length:** if longer than 64 characters, truncate to 64 and trim trailing `-`.
 
 Examples:
 - `https://stripe.com/pricing` → `stripe-pricing`
 - `https://linear.app/` → `linear-home`
 - `https://www.notion.so/product` → `notion-product`
-- `https://app.example.io/dashboard/overview` → `app-example-dashboard-overview` (keep all path segments; strip `-com/-io/-net/-org` only when they're the last segment of the host)
+- `https://app.example.io/dashboard/overview` → `app-example-dashboard-overview`
+- `https://localhost:3000/foo?x=1#y` → `localhost-foo`
+- `https://192.168.1.10/admin` → `192-168-1-10-admin`
+- `https://shop.example.co.uk/checkout` → `shop-example-checkout`
 
 Set `recipeName`.
 
 ## Step 4: Dispatch to recipe-extractor agent
 
-Use the Task tool to invoke the `recipe-extractor` agent at `${CLAUDE_PLUGIN_ROOT}/agents/recipe-extractor.md`. Pass these inputs in the prompt:
+Use the Task tool to invoke the `recipe-extractor` agent at `${CLAUDE_PLUGIN_ROOT}/agents/recipe-extractor.md`. Pass these inputs in the prompt (all required even if null):
 
 - `url`
 - `recipeName`
 - `kindOverride` (or null)
-- `useChromeMcp` and `screenshotMode`
-- `screenshotOverride` path (if set)
+- `useChromeMcp` (boolean)
+- `screenshotMode` (one of `"chrome-mcp" | "user-provided" | "html-only"` — set in Step 2)
+- `screenshotOverride` path (or null)
 - `viewportMode`
 - `unattended` flag
-- The list of all bundled recipe paths: `${CLAUDE_PLUGIN_ROOT}/data/recipes/*.json`
-- The list of project recipe paths (Glob `.design-rules/recipes/*.json`)
+- The list of all bundled recipe paths: `${CLAUDE_PLUGIN_ROOT}/data/recipes/*.json` (use Glob)
+- The list of project recipe paths: `.design-rules/recipes/*.json` (use Glob; may be empty)
 
-The agent returns a JSON blob: `{ recipe: <recipe object>, newVocabulary: [<list of new type names introduced>], notes: [<warnings or info>] }`.
+The agent returns its result as a single fenced JSON code block — for example:
 
-If the agent returns an error condition (e.g., URL unreachable, page renders blank), surface the error, do not write, stop.
+````
+```json
+{ "recipe": ..., "newVocabulary": [...], "notes": [...] }
+```
+````
+
+**Parse the agent's output:**
+1. Take the agent's full text response.
+2. Extract the content between the first ```` ```json ```` (or ```` ``` ````) and its closing ```` ``` ````. If no fenced block is found, treat the entire response as the JSON candidate.
+3. `JSON.parse` (or equivalent) the extracted text. If parse fails, surface the raw response to the user, do not write, stop with: `Agent returned malformed output. See above for raw response.`
+
+Two valid result shapes:
+
+- **Success:** `{ "recipe": <recipe object>, "newVocabulary": [<list of new type names introduced>], "notes": [<warnings or info>] }`
+- **Failure:** `{ "error": "<message>", "stage": "<fetch | render | identify | format>" }`
+
+If the result has an `error` field, surface the error and stage to the user, do not write, stop.
 
 ## Step 5: Pre-confirm
 
@@ -184,21 +222,28 @@ If user types `y`/`yes`/empty/return, continue to Step 6.
 
 Check whether `.design-rules/recipes/<recipeName>.json` already exists.
 
+If it does NOT exist, set `writePath` to the original path and proceed.
+
+If it exists AND `force` is true: overwrite without asking. Set `writePath` to the original path.
+
 If it exists AND `force` is false:
 
-```
-File exists at .design-rules/recipes/<recipeName>.json. Options:
-1. Overwrite
-2. Write to .design-rules/recipes/<recipeName>-2.json
-3. Cancel
-[1/2/3, default: 2]:
-```
+1. Compute the next available suffixed path. Strategy:
+   - If `recipeName` already ends in `-<N>` where N is a positive integer (e.g., `stripe-pricing-2`), strip the suffix to get `baseName`. Otherwise `baseName = recipeName`.
+   - Find the smallest integer `N >= 2` such that `.design-rules/recipes/<baseName>-<N>.json` does not exist. Call this `suggestedPath`.
+2. Prompt:
 
-Default to option 2 (suffix) on Enter. Map answer to a `writePath`.
+   ```
+   File exists at .design-rules/recipes/<recipeName>.json. Options:
+   1. Overwrite
+   2. Write to <suggestedPath>
+   3. Cancel
+   [1/2/3, default: 2]:
+   ```
 
-If `force` is true, overwrite without asking. Set `writePath` to the original path.
+3. Default to option 2 on Enter or empty input. Map answer to `writePath`.
 
-If user picks 3 / cancel, stop.
+If user picks 3 / cancel, stop, no files written.
 
 ## Step 7: Write the recipe
 
@@ -350,18 +395,22 @@ Hold the extracted info in memory as `htmlSignal`. Used in §4 for kind detectio
 
 ### §3a Chrome MCP path (`screenshotMode === "chrome-mcp"`)
 
-1. Call `tabs_context_mcp` with `createIfEmpty: true` to ensure the MCP tab group exists.
-2. Call `tabs_create_mcp` to create a new tab. Capture the returned `tabId`.
-3. Call `navigate` with `url` and `tabId`. Wait for navigation to settle (give it 3-5 seconds; sites with slow JS hydration may need more — if a `wait` action is available use it, otherwise just proceed).
-4. **Desktop capture** (skip if `viewportMode === "mobile"`):
+1. Call `tabs_context_mcp` with `createIfEmpty: true` to ensure the MCP tab group exists. Note the existing tab ID list as `existingTabIds`.
+2. Call `tabs_create_mcp` to create a new tab.
+3. Call `tabs_context_mcp` again. The new tab is the one whose ID is not in `existingTabIds`. Capture this as `tabId`. (Don't assume `tabs_create_mcp`'s return shape — discover the new tab from the context diff.)
+4. Track `tabId` for cleanup. Wrap the remainder of the capture in a try-finally pattern: on any failure between here and step 8, still attempt `tabs_close_mcp` with `tabId` before returning the error.
+5. Call `navigate` with `url` and `tabId`. Then call `computer` with `action: "wait", duration: 3, tabId` to give the page time to settle (more for JS-heavy sites — bump to 5-8 seconds if the screenshot in step 6 looks empty).
+6. **Desktop capture** (skip if `viewportMode === "mobile"`):
    - Call `resize_window` with `width: 1440, height: 900, tabId`.
-   - Call `computer` with `action: "screenshot", tabId, save_to_disk: true`. Hold the returned image reference as `desktopScreenshot`.
-5. **Mobile capture** (skip if `viewportMode === "desktop"`):
+   - Call `computer` with `action: "screenshot", tabId`. Do NOT pass `save_to_disk` — that flag exists to share images with the user, not for the agent to view them. The screenshot is automatically attached to the agent's context as visual content. Hold the result as `desktopScreenshot`.
+7. **Mobile capture** (skip if `viewportMode === "desktop"`):
    - Call `resize_window` with `width: 390, height: 844, tabId`.
-   - Call `computer` with `action: "screenshot", tabId, save_to_disk: true`. Hold as `mobileScreenshot`.
-6. Call `tabs_close_mcp` with `tabId` to clean up.
+   - Call `computer` with `action: "screenshot", tabId`. Hold as `mobileScreenshot`.
+8. Call `tabs_close_mcp` with `tabId` to clean up. (Always run this — even if step 5/6/7 failed, per step 4's try-finally.)
 
-If any Chrome MCP call fails, fall back to the user-provided path or html-only mode if those were configured. Otherwise return:
+If any Chrome MCP call fails:
+- Always run `tabs_close_mcp` for `tabId` before returning, if `tabId` was set.
+- Return:
 
 ```json
 { "error": "Chrome MCP capture failed: <reason>. Try --screenshot=<path> with a manual capture.", "stage": "render" }
@@ -369,7 +418,15 @@ If any Chrome MCP call fails, fall back to the user-provided path or html-only m
 
 ### §3b User-provided path (`screenshotMode === "user-provided"`)
 
-Read the file at `screenshotOverride`. Hold it as `desktopScreenshot`. `mobileScreenshot` is null. Set `viewportsCaptured = ["1440px"]` (best assumption — the user knows what they captured; if they pass a mobile shot, the mobileBehavior fields will be wrong but that's their call).
+Use the Read tool on `screenshotOverride`. The Read tool supports image files (PNG/JPG) and presents them as visual content for multimodal analysis. Hold the result as `desktopScreenshot`. `mobileScreenshot` is null.
+
+Set `viewportsCaptured = ["1440px"]` as a best assumption — the user knows what they captured. If they passed a mobile shot, `mobileBehavior` fields cannot be filled and will be omitted, but the recipe is still produced.
+
+If Read fails (file not found, unreadable), return:
+
+```json
+{ "error": "Could not read screenshot at <path>: <reason>", "stage": "render" }
+```
 
 ### §3c HTML-only (`screenshotMode === "html-only"`)
 
@@ -493,9 +550,9 @@ If `useChromeMcp === false`, never set `authenticated` (you don't have signal).
 
 ## §6 Build the recipe object
 
-Construct the recipe in this exact shape:
+Construct the recipe in this exact shape (fields marked with `// optional` may be omitted entirely; never write them with `null` or `false`):
 
-```json
+```jsonc
 {
   "name": "<recipeName>",
   "version": 1,
@@ -503,12 +560,12 @@ Construct the recipe in this exact shape:
   "sourceUrl": "<url>",
   "extractedAt": "<YYYY-MM-DD UTC date>",
   "viewportsCaptured": ["1440px", "390px"],
-  "authenticated": true,
+  "authenticated": true,            // optional — include only when §5 detects authentication
   "sections": [
     {
       "type": "<typeName>",
       "props": { ... },
-      "mobileBehavior": "<string or omit>"
+      "mobileBehavior": "<string>"  // optional — include only when §4e produced a string
     }
   ]
 }
@@ -532,13 +589,20 @@ Proposed type: `<typeName>`
 Description: <one-line description of the layout pattern>
 Props detected: <comma-separated keys>
 
-Save as `<typeName>`? [y/r/s] (yes / rename / skip)
+Save as `<typeName>`? [y/r/s/c] (yes / rename / skip / cancel)
 ```
 
 Handle responses:
 - `y` / yes / empty → accept, no change.
-- `r` / rename → ask `New name (kebab-case):` and replace the type name in the recipe (and in the `newVocabulary` list).
+- `r` / rename → ask `New name (kebab-case, must match ^[a-z][a-z0-9-]*$):`. If the input doesn't match, re-prompt. Replace the type name in the recipe (and in `newVocabulary`).
 - `s` / skip → replace the type with `unknown-<index>` (e.g., `unknown-1`); add a note to `notes`.
+- `c` / cancel → return:
+
+  ```json
+  { "error": "Extraction cancelled by user during propose-and-name.", "stage": "identify" }
+  ```
+
+  This causes the calling command to surface the cancellation and write nothing.
 
 If `unattended === true`, skip this interaction entirely. New types are kept as proposed.
 
@@ -588,7 +652,7 @@ git commit -m "feat(agents): recipe-extractor agent with multimodal section iden
 
 ## Phase 3 — Wire-up and validation harness
 
-**Boundary deliverable:** End-to-end `--dry-run` produces a recipe; full mode writes a file with conflict resolution; summary output is correct.
+**Boundary deliverable:** End-to-end `--dry-run` produces a recipe; full mode writes a file with conflict resolution; `/design-page` can find and use extracted recipes from `.design-rules/recipes/`; summary output is correct.
 
 ### Task 3.1: End-to-end dry-run smoke test
 
@@ -670,6 +734,95 @@ rm .design-rules/recipes/example-home*.json
 ```
 
 No commit (cleanup of test artifacts).
+
+### Task 3.3: Update /design-page to read project-local recipes
+
+**Files:**
+- Modify: `commands/design-page.md`
+
+**Why:** Today `/design-page` reads recipes only from `${CLAUDE_PLUGIN_ROOT}/data/recipes/<name>.json`. Extracted recipes land in `.design-rules/recipes/<name>.json`, which `/design-page` doesn't look at — making extracted recipes unusable end-to-end. This task fixes the lookup.
+
+**Step 1: Read the current Step 3 of `/design-page`**
+
+Run: `grep -n "data/recipes" commands/design-page.md`
+
+Expected: hit on the `${CLAUDE_PLUGIN_ROOT}/data/recipes/<recipeName>.json` path.
+
+**Step 2: Replace the recipe lookup logic**
+
+Find this block in `commands/design-page.md` (Step 3):
+
+```
+Read `${CLAUDE_PLUGIN_ROOT}/data/recipes/<recipeName>.json`.
+
+If the file doesn't exist (Phase 8 hasn't created recipe files yet):
+- Print a soft warning: "Recipe `<recipeName>` not found at expected path — using a generic skeleton. Phase 8 will add the recipe file."
+- Use a default fallback: `{ "name": "<recipeName>", "sections": [{ "type": "hero" }, { "type": "kpi-grid", "columns": 2 }, { "type": "section-card", "title": "Recent Activity" }] }`
+```
+
+Replace with:
+
+```
+Look up the recipe in this order (project overrides bundled):
+
+1. `.design-rules/recipes/<recipeName>.json` (project-local — extracted or hand-authored)
+2. `${CLAUDE_PLUGIN_ROOT}/data/recipes/<recipeName>.json` (bundled with the plugin)
+
+Stop at the first hit. Note the source for the summary in Step 9 (e.g., "(from project)" or "(from bundled)").
+
+If neither exists:
+- Print a soft warning: "Recipe `<recipeName>` not found in project (.design-rules/recipes/) or bundled (data/recipes/). Using a generic skeleton."
+- Use a default fallback: `{ "name": "<recipeName>", "sections": [{ "type": "hero" }, { "type": "kpi-grid", "columns": 2 }, { "type": "section-card", "title": "Recent Activity" }] }`
+```
+
+**Step 3: Update the inline-prompt list of recipes**
+
+Find this block in Step 2 of `/design-page`:
+
+```
+3. If both are absent, prompt the user inline:
+
+   ```
+   No recipe set. Pick one:
+   1. saas — dashboard with KPI grid + charts + activity
+   ...
+   ```
+```
+
+Add a hint above the numbered list mentioning project recipes:
+
+```
+If `.design-rules/recipes/` contains any project recipes (Glob `.design-rules/recipes/*.json`), list those first before the bundled options:
+
+   ```
+   No recipe set. Pick one:
+
+   Project recipes (.design-rules/recipes/):
+   - <name1>
+   - <name2>
+
+   Bundled recipes:
+   1. saas — dashboard with KPI grid + charts + activity
+   ...
+   ```
+
+Map a project-recipe name typed by the user to that recipe directly.
+```
+
+(Adapt to existing markdown structure; goal is that project recipes are visible at the prompt.)
+
+**Step 4: Verify**
+
+Run: `grep -A2 "design-rules/recipes" commands/design-page.md`
+
+Expected: at least 2 hits (lookup + the inline-prompt addition).
+
+**Step 5: Commit**
+
+```bash
+git add commands/design-page.md
+git commit -m "feat(commands): /design-page reads project-local recipes from .design-rules/recipes/"
+```
 
 ---
 
@@ -781,13 +934,7 @@ Most likely issues:
 
 Fix and re-run until checklist passes.
 
-**Step 4: Save the dry-run output as the canonical reference**
-
-Once acceptable, run again without `--dry-run` and save to `.design-rules/recipes/`. Move the resulting file to `data/recipes/marketing/stripe-pricing.json` for future inclusion in the bundled set (see Phase 5 follow-up — out of scope for this PR but worth noting):
-
-(Skip this step — bundled additions are a separate decision.)
-
-**Step 5: Commit any agent fixes**
+**Step 4: Commit any agent fixes**
 
 ```bash
 git commit -m "fix(agents): tune <specific aspect> from Stripe pricing validation"
@@ -911,17 +1058,19 @@ gh pr create --title "feat: /design-recipe extract for issue #3" --body "$(cat <
 - Output is a recipe JSON at `.design-rules/recipes/<name>.json` with provenance (`sourceUrl`, `extractedAt`, `viewportsCaptured`, optional `authenticated`) and per-section `mobileBehavior` strings.
 - Vocabulary is implicit in the union of `type` strings across existing recipes — no separate catalog file. Tailwind UI Plus block names are documented in the agent prompt as naming inspiration.
 - Recipe shape is flat (no nested layouts); patterns absorb internal complexity. Backwards-compatible — bundled 5 recipes unchanged and still load correctly.
+- Updates `/design-page` to look in `.design-rules/recipes/` (project) before `${CLAUDE_PLUGIN_ROOT}/data/recipes/` (bundled), so extracted recipes are usable end-to-end.
 
 Closes [#3](https://github.com/TimSimpsonJr/design-engine/issues/3).
 
 ## Test plan
 
 - [x] `--dry-run` on `https://example.com` produces a minimal recipe.
-- [x] Conflict resolution: overwrite / suffix-2 / cancel + `--force` all behave correctly.
+- [x] Conflict resolution: overwrite / suffix-N / cancel + `--force` all behave correctly.
 - [x] Stripe pricing extraction passes acceptance checklist.
 - [x] Linear marketing extraction passes acceptance checklist.
 - [x] Notion homepage extraction passes acceptance checklist (bento not flattened).
 - [x] Authenticated dashboard extraction sets `authenticated: true`.
+- [x] `/design-page <extracted-name>` loads a recipe from `.design-rules/recipes/`.
 - [x] MANIFEST.md and README.md updated.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

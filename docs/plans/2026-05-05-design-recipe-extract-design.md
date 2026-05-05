@@ -31,7 +31,7 @@ Today, recipes are bundled (5 dashboards: `saas`, `ecommerce`, `fintech`, `socia
 
 ## 1. Vocabulary handling — no catalog file
 
-The system already references components: a section's `type` value (e.g., `kpi-grid`, `hero-card`) is a reference to a pattern in `react-shadcn/components/patterns/`. Three levels exist today:
+The system already references components: a section's `type` value (e.g., `kpi-grid`, `hero-card`) is a reference to a pattern in `adapters/react-shadcn/adapters/react-shadcn/components/patterns/`. Three levels exist today:
 
 - **Recipes** describe page shape (ordered list of section references).
 - **Patterns** define each section's internal composition.
@@ -86,7 +86,6 @@ Existing recipes (the bundled 5) keep their current shape. Extracted recipes add
   "sourceUrl": "https://stripe.com/pricing",
   "extractedAt": "2026-05-05",
   "viewportsCaptured": ["1440px", "390px"],
-  "authenticated": false,
   "sections": [
     {
       "type": "hero-with-headline-and-eyebrow",
@@ -109,7 +108,7 @@ Existing recipes (the bundled 5) keep their current shape. Extracted recipes add
 | `kind` | string | yes | `"dashboard"`, `"marketing"`, `"ecommerce"`, `"application-ui"`, or other (extensible). Auto-detected; user can override with `--kind=`. |
 | `sourceUrl` | string | yes | Originating URL. |
 | `extractedAt` | string | yes | ISO date (YYYY-MM-DD). |
-| `viewportsCaptured` | string[] | yes | Pixel widths captured during extract (always `["1440px", "390px"]` in v1). |
+| `viewportsCaptured` | string[] | yes | Pixel widths captured during extract. Typically `["1440px", "390px"]`; degraded modes (user-provided screenshot, html-only, `--viewport=desktop`/`mobile`) may produce a shorter list or `[]`. |
 | `authenticated` | boolean | no | Only set to `true` if the extract happened against a logged-in page (Chrome MCP inherited a session). Tells future-Tim that re-extraction from a clean session won't reproduce. Omitted otherwise. |
 
 **New per-section field:**
@@ -176,7 +175,7 @@ The command file at `commands/design-recipe.md` parses arguments, dispatches to 
     Next:
     - /design-page <name> "<description>" --recipe=<name>  to scaffold a page using this recipe
     - Edit .design-rules/recipes/<name>.json directly to refine props or section ordering
-    - Future patterns for new types live in components/patterns/ — author when needed
+    - Future patterns for new types live in adapters/react-shadcn/components/patterns/ — author when needed
     ```
 
 ### 4.3 Failure modes
@@ -228,6 +227,7 @@ No data files. No new schemas. No vocabulary registry. The simplification is the
 
 | Path | Change |
 |---|---|
+| `commands/design-page.md` | **Required.** Currently reads recipes only from `${CLAUDE_PLUGIN_ROOT}/data/recipes/<name>.json`; needs to also check `.design-rules/recipes/<name>.json` (project-local) so extracted recipes are usable with `/design-page`. Lookup order: project first (overrides), then bundled. Without this change, extract produces files `/design-page` cannot find — feature is unusable end-to-end. |
 | `MANIFEST.md` | Add the new command and agent to the structure tree. Add a relationship note explaining recipes-as-vocabulary and the agent's reliance on existing recipes for the type map. |
 | `README.md` | One-line addition under commands list. |
 | `.claude-plugin/plugin.json` | Increment `version` (decision deferred to implementation; likely a minor bump). |
