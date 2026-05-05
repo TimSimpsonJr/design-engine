@@ -18,7 +18,7 @@
   type Mode = 'light' | 'dark';
   type ColorTokens = Record<ColorKey, string>;
   type TokenSet = { light: ColorTokens; dark: ColorTokens; font: string };
-  type FontEntry = { family: string; category: string; weights?: number[] };
+  type FontEntry = { family: string; category: string; weights?: number[]; axisRange?: string };
   type FontImport = { name: string; weights?: number[]; axisRange?: string } | null;
 
   const OFFLINE_FONTS: FontEntry[] = [
@@ -38,6 +38,9 @@
     { family: 'Albert Sans', category: 'sans-serif', weights: [400, 500, 600, 700] },
   ];
 
+  const GOOGLE_FONTS_METADATA_URL = 'https://fonts.google.com/metadata/fonts';
+  const CATALOG_CACHE_KEY = 'de-google-fonts-catalog-v1';
+
   let tokens = $state<TokenSet | null>(null);
   let mode = $state<Mode>('light');
   let loadError = $state<string | null>(null);
@@ -45,14 +48,16 @@
   let statusKind = $state<'idle' | 'saving' | 'saved'>('idle');
   let fontInput = $state<string>('');
   let suggestionsOpen = $state<boolean>(false);
+  let fontEntries = $state<FontEntry[]>(OFFLINE_FONTS);
 
   let pendingFontImport: FontImport | undefined = undefined;
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
   let savedHideTimer: ReturnType<typeof setTimeout> | null = null;
   let suggestionsHideTimer: ReturnType<typeof setTimeout> | null = null;
+  let catalogPromise: Promise<FontEntry[]> | null = null;
 
   const filteredFonts = $derived(
-    OFFLINE_FONTS.filter((f) => f.family.toLowerCase().includes(fontInput.toLowerCase())).slice(0, 20),
+    fontEntries.filter((f) => f.family.toLowerCase().includes(fontInput.toLowerCase())).slice(0, 20),
   );
 
   const cssOutput = $derived(generateCss(tokens));
@@ -170,14 +175,15 @@
 
   function onFontFocus() {
     suggestionsOpen = true;
+    if (browser) void loadGoogleFontsCatalog();
   }
 
   function onFontBlur() {
     if (!tokens) return;
-    const match = OFFLINE_FONTS.find((f) => f.family.toLowerCase() === fontInput.toLowerCase());
+    const match = fontEntries.find((f) => f.family.toLowerCase() === fontInput.toLowerCase());
     if (match) {
       tokens.font = match.family;
-      pendingFontImport = { name: match.family, weights: match.weights };
+      pendingFontImport = { name: match.family, weights: match.weights, axisRange: match.axisRange };
     } else {
       tokens.font = fontInput;
       pendingFontImport = null;
@@ -185,6 +191,81 @@
     if (suggestionsHideTimer !== null) clearTimeout(suggestionsHideTimer);
     suggestionsHideTimer = setTimeout(() => { suggestionsOpen = false; }, 150);
     void flushSave();
+  }
+
+  async function loadGoogleFontsCatalog(): Promise<FontEntry[]> {
+    if (catalogPromise) return catalogPromise;
+
+    try {
+      const cached = sessionStorage.getItem(CATALOG_CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached) as FontEntry[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          fontEntries = parsed;
+          return parsed;
+        }
+      }
+    } catch { /* corrupt cache — refetch */ }
+
+    catalogPromise = (async () => {
+      const res = await fetch(GOOGLE_FONTS_METADATA_URL);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      const stripped = stripJsonPrefix(text);
+      const data = JSON.parse(stripped);
+      const list = Array.isArray(data?.familyMetadataList) ? data.familyMetadataList : [];
+      const mapped = list
+        .map(mapMetadataEntry)
+        .filter((e: FontEntry | null): e is FontEntry => e !== null);
+      if (mapped.length === 0) throw new Error('Empty catalog');
+      try { sessionStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(mapped)); } catch { /* quota — skip cache */ }
+      fontEntries = mapped;
+      return mapped;
+    })();
+    return catalogPromise;
+  }
+
+  function stripJsonPrefix(raw: string): string {
+    // Google's XSSI prefix is `)]}'` followed by a newline, but be tolerant of variants.
+    const trimmed = raw.replace(/^﻿/, '');
+    const match = trimmed.match(/^[\s\)\]\}'"]*?(\{|\[)/);
+    if (match && match.index === 0) return trimmed.slice(match[0].length - 1);
+    return trimmed;
+  }
+
+  function mapMetadataEntry(raw: any): FontEntry | null {
+    if (!raw || typeof raw.family !== 'string') return null;
+    const family = raw.family;
+    const category = normalizeCategory(raw.category);
+
+    const axes = Array.isArray(raw.axes) ? raw.axes : [];
+    const wght = axes.find((a: any) => a?.tag === 'wght' && typeof a.min === 'number' && typeof a.max === 'number');
+    if (wght) {
+      return { family, category, axisRange: `${Math.round(wght.min)}..${Math.round(wght.max)}` };
+    }
+
+    const weights: number[] = [];
+    if (raw.fonts && typeof raw.fonts === 'object') {
+      const seen = new Set<number>();
+      for (const key of Object.keys(raw.fonts)) {
+        const n = parseInt(key, 10);
+        if (!Number.isNaN(n) && n >= 100 && n <= 1000 && !seen.has(n)) {
+          seen.add(n);
+          weights.push(n);
+        }
+      }
+      weights.sort((a, b) => a - b);
+    }
+
+    if (weights.length === 0 || (weights.length === 1 && weights[0] === 400)) {
+      return { family, category };
+    }
+    return { family, category, weights };
+  }
+
+  function normalizeCategory(raw: any): string {
+    if (typeof raw !== 'string' || !raw) return 'sans-serif';
+    return raw.toLowerCase().replace(/_/g, '-');
   }
 
   function onModeToggle(m: Mode) {
