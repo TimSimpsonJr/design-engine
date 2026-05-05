@@ -34,5 +34,5 @@
       "border": "#27272A"
     }
   },
-  "fonts": { "primary": "Inter", "mono": "DM Mono" }
+  "fonts": { "primary": "SF Pro Display", "mono": "JetBrains Mono" }
 }
