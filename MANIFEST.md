@@ -19,9 +19,9 @@ adapters/                                      Stack-specific templates + theme 
     README.md                                    Adapter usage notes
     theme/
       base.css                                     Global element resets, typography rules, a11y utilities
-      fonts.css                                    @font imports + body font-family declaration
+      fonts.css                                    Body rule consumes `--font-primary` via var(); managed @import block delimited by markers
       index.css                                    Top-level CSS entrypoint that aggregates the others
-      theme.css                                    Token declarations (:root + .dark blocks)
+      theme.css                                    Token declarations including `--font-primary` (:root + .dark blocks)
   react-shadcn/                                React + Vite + Tailwind v4 + shadcn adapter
     manifest.json                                Capabilities, settingsPage config, target paths
     README.md                                    Adapter notes + porting attribution
@@ -33,7 +33,11 @@ adapters/                                      Stack-specific templates + theme 
       component.tsx                                Single-component template
       page.tsx                                     Page-shape template (recipe-driven)
       pattern.tsx                                  Pattern-shape template
-      settings-page.tsx                            Runtime token editor (currently snippet-only)
+      settings-page.tsx                            Legacy snippet-mode token editor (kept for reference; direct mode uses files below)
+      theme-io.ts                                  Surgical theme.css parser/writer; runs in user project as Vite plugin server-side helper
+      vite-plugin-design-engine.ts                 Dev-only Vite plugin owning /__design/* (HTML + JSON API)
+      __design-page.html                           Settings page HTML shell with token-driven CSS
+      __design-page.ts                             Settings page logic (vanilla TS, safe DOM, autosave with debounce)
   astro/                                       Astro + Tailwind v4 adapter
     manifest.json
     README.md
@@ -90,6 +94,13 @@ docs/
     2026-05-04-design-engine-plugin-design.md    Original plugin design doc (lifecycles, decisions)
     2026-05-04-design-engine-implementation.md   Phased implementation plan (Phases 1-7)
 
+tests/                                         Unit tests for theme-io helper template
+  package.json                                   Node --test runner config (devDeps: typescript, @types/node)
+  theme-io.parse.test.ts                         parseTokens edge cases — comments, strings, nested @media, dark inheritance
+  theme-io.write.test.ts                         writeTokens round-trip + comment-safety + missing-var append
+  theme-io.fonts.test.ts                         writeFontImports + buildGoogleFontsUrl
+  fixtures/*.css                                 7 theme.css and fonts.css fixtures for the above
+
 LICENSE                                        MIT (own work)
 NOTICE                                         Attribution to bitjaru/styleseed (MIT) + skin catalog source
 README.md                                      User-facing intro, quick start, commands/skills/adapters reference
@@ -98,13 +109,13 @@ README.md                                      User-facing intro, quick start, c
 
 ## Key Relationships
 
-**Skin → adapter → theme.css.** Skin JSON (`data/skins/<name>.json`) holds palette + fonts. `/design-skin` resolves a skin via 4-source lookup (project cache → user global → bundled → awesome-design-md fetch), then writes its values into the active adapter's `theme.css`. The 5 bundled skins currently all specify `Inter` regardless of upstream — bug fixed in feat/settings-page-write-back.
+**Skin → adapter → theme.css.** Skin JSON (`data/skins/<name>.json`) holds palette + fonts. `/design-skin` resolves a skin via 4-source lookup (project cache → user global → bundled → awesome-design-md fetch), then writes its values into the active adapter's `theme.css`. The 5 bundled skins now specify accurate upstream fonts: Vercel→Geist, Stripe→SF Pro Display (sohne-var fallback), Toss→Pretendard. Linear and Notion stay on Inter (closest available match for their upstream specs).
 
-**Skin font value vs. fonts.css consumption.** Skin sets `--font-primary` in `theme.css` via `/design-skin` and `/design-settings-page`. But `adapters/tailwind-v4/theme/fonts.css` hardcodes `body { font-family: 'Inter', ...; }` instead of consuming the variable — so font edits never take effect. Fixed in feat/settings-page-write-back (body rule consumes `var(--font-primary)`; managed `@import` block).
+**Skin font value vs. fonts.css consumption.** Skin sets `--font-primary` in `theme.css` via `/design-skin` and `/design-settings-page`. Now resolved: `fonts.css`'s body rule consumes `var(--font-primary)`, and the managed `@import` block is rewritten when `/design-skin` applies a skin (latter is a deferred follow-up).
 
 **Adapter inheritance.** `react-shadcn`, `astro`, `sveltekit` all declare `extends: "tailwind-v4"` in their manifests, meaning their settings-page generation reads from both the framework adapter's templates and tailwind-v4's theme files.
 
-**Settings-page mode (`writeCapable`).** Per-adapter manifest field declares whether the settings UI can write back to disk: `"snippet"` (web today — copy/paste only), `true` (Obsidian — direct via Settings API), `false` (tailwind-v4 base, no settings page). Migration to enum `"none" | "snippet" | "direct"` in feat/settings-page-write-back, with web adapters flipping to `"direct"`.
+**Settings-page mode (`writeCapable`).** Per-adapter manifest field declares whether the settings UI can write back to disk. Target enum: `"direct" | "snippet" | "none"`. `react-shadcn` is now `"direct"` (live write-back via the dev-only Vite plugin in `templates/vite-plugin-design-engine.ts` + `theme-io.ts`). The remaining adapters keep their legacy values pending follow-up: `obsidian-css` reports `true` (treat as `"direct"`), `astro`/`sveltekit`/`plain-css` report `"snippet"` (copy/paste output), `tailwind-v4` reports `false` (treat as `"none"`). The `/design-settings-page` command normalizes the legacy values at read time.
 
 **styleseed porting.** All `react-shadcn/components/ui/*.tsx` and `react-shadcn/components/patterns/*.tsx` files retain their original `bitjaru/styleseed` MIT header comments and add a porting note. NOTICE file at repo root documents the upstream attribution.
 
