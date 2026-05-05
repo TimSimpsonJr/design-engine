@@ -4,5 +4,9 @@
   "type": "module",
   "scripts": {
     "test": "node --test --experimental-strip-types ./*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.3"
   }
 }

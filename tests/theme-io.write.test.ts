@@ -7,7 +7,7 @@ import { readTokens, writeTokens } from '../adapters/react-shadcn/templates/them
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fix = (name: string) => join(here, 'fixtures', name);
-const TMP = join(here, 'tmp');
+const TMP = join(here, 'tmp', 'write');
 
 async function workingCopy(srcName: string): Promise<string> {
   await mkdir(TMP, { recursive: true });

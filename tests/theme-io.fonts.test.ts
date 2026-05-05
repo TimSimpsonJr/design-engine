@@ -7,7 +7,7 @@ import { writeFontImports, buildGoogleFontsUrl } from '../adapters/react-shadcn/
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fix = (name: string) => join(here, 'fixtures', name);
-const TMP = join(here, 'tmp');
+const TMP = join(here, 'tmp', 'fonts');
 
 async function workingCopy(name: string): Promise<string> {
   await mkdir(TMP, { recursive: true });
