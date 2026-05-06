@@ -2,6 +2,34 @@
 
 > Verbatim from [nexu-io/open-design `craft/accessibility-baseline.md`](https://github.com/nexu-io/open-design/blob/main/craft/accessibility-baseline.md). design-engine additions block prepended in Phase 3.
 
+## design-engine principles
+
+### Accessibility essentials reinforcement (from rule 41)
+
+The OD baseline below covers the legal floor and craft commitments in
+depth. The design-language layer reinforces these working defaults as
+the always-on minimum:
+
+- **Touch targets at least 44×44 px** (the AAA / craft commitment, not
+  the AA legal floor). Visual graphics can be smaller, but the tap
+  area uses invisible padding to reach 44×44.
+- **Body text contrast ≥ 4.5:1**, large text ≥ 3:1 against the
+  surface it sits on
+- **Never convey information through color alone** — pair every
+  status color with an icon, text label, or shape
+- **Charts and complex graphics need an `aria-label`** that conveys
+  the underlying data, not just the chart title
+- **Always honor `prefers-reduced-motion`** — animations strip to
+  near-instant or substitute opacity-only crossfades; see
+  `animation-discipline.md`
+
+These are baselines, not ceilings. The detailed jurisdictional
+mapping below (EAA, ADA Title II, Section 508) governs the actual
+compliance floor — but no artifact should ship below the working
+defaults regardless of jurisdiction.
+
+## OD baseline (verbatim from upstream)
+
 Universal rules for the legal floor of accessibility plus the craft
 commitments that go beyond it. The active `DESIGN.md` decides brand
 appearance; this file decides which rules an artifact has to clear
