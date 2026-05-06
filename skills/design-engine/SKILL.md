@@ -1,6 +1,12 @@
 ---
 name: design-engine
 description: Use when building, modifying, reviewing, or designing UI — components, pages, screens, layouts, styles, themes, design tokens, or visual patterns. Carries design rules, the typography token system, color hierarchy, accessibility minimums, and the prohibited-practices list. Do not use for backend, API, database, build config, tests, or non-UI code.
+od.craft.requires:
+  - anti-ai-slop
+  - color
+  - typography
+  - state-coverage
+  - accessibility-baseline
 ---
 
 > **Active configuration:** When working in a project, check `.design-rules/config.json` for the active adapter, skin, and recipe. If the file is not present, this skill provides reference content but no project-specific config — suggest the user run `/design-init` to capture design decisions as artifacts.
@@ -774,5 +780,5 @@ When the user asks you to build or review UI:
 2. **Read the Golden Rules** at the top of this skill
 3. **Use the Font Size by Context table** for any size choice — never guess
 4. **Apply the active adapter's idiom** for markup (React for `react-shadcn`, Astro for `astro`, etc.)
-5. **For data-dense / dashboard / fintech work:** the `design-language` skill auto-loads the 69 mobile-dashboard rules — apply those on top
+5. **For data-dense / dashboard / fintech work:** the `mobile-dashboard` skill auto-loads dashboard-specialty rules (composition grammar, KPI variation, chart styling, visual rhythm) — apply those on top
 6. **Verify with `/design-review`** after generating UI

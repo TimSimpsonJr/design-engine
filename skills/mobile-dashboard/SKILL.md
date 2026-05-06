@@ -1,6 +1,12 @@
 ---
 name: mobile-dashboard
 description: Use when designing data-dense mobile-first UI — dashboards, KPI grids, fintech screens, analytics interfaces, admin panels, chart-heavy layouts. Provides mobile-dashboard-specialty rules covering page layout, section types, KPI variation, chart/list patterns, and visual rhythm. Layers on top of design-engine for dashboard-specific specialty work. Do not use for marketing pages, content sites, blog UIs, native iOS/Android (use apple-design or material-design instead), or non-UI code.
+od.craft.requires:
+  - color
+  - typography
+  - anti-ai-slop
+  - state-coverage
+  - animation-discipline
 ---
 
 > **Active configuration:** Check `.design-rules/config.json` in the current project for the active adapter, skin, and recipe. This skill applies the mobile-dashboard specialty rules below to the active context.
