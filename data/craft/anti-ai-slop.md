@@ -36,7 +36,7 @@ banned moves.
 
 Hard "don'ts" that survive across products:
 
-- **No pure black** anywhere — pick a soft near-black like `#2A2A2A`
+- **No pure black** anywhere — pick a soft near-black instead
 - **No accent-color fills on entire cards** — accent is for elements,
   not surfaces
 - **No strong shadows** (≥15 % opacity) — see Shadow rule above
