@@ -2,6 +2,12 @@
 
 > Verbatim from [nexu-io/open-design `craft/rtl-and-bidi.md`](https://github.com/nexu-io/open-design/blob/main/craft/rtl-and-bidi.md). design-engine additions block prepended in Phase 3.
 
+## design-engine principles
+
+> No rules from the design-language triage (Phase 3) routed here. See `docs/triage-69-rules.md`.
+
+## OD baseline (verbatim from upstream)
+
 Universal rules for right-to-left layout and bidirectional text. The
 active `DESIGN.md` decides brand visual language; this file decides
 how that language behaves when the script reads from the right or
