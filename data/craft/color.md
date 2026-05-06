@@ -2,6 +2,38 @@
 
 > Verbatim from [nexu-io/open-design `craft/color.md`](https://github.com/nexu-io/open-design/blob/main/craft/color.md). design-engine additions block prepended in Phase 3.
 
+## design-engine principles
+
+### Single accent + grayscale (from rule 1)
+
+Unity comes from one key color used only for active or selected states;
+everything else stays grayscale so the accent reads. Pure black is
+forbidden — use a soft near-black for primary text. Status / impact
+colors (success, warning, urgent) are reserved for very small areas:
+a 6 px dot plus 11 px label is the maximum size, never a large fill.
+
+### Dark mode brightness ladder (from rule 45)
+
+In dark mode, the relationship between page and card must invert
+correctly — cards stay **brighter** than the page background, mirroring
+the light-mode (#FAFAFA → #FFFFFF) gap. Maintain at least a noticeable
+brightness step between page, card, and elevated-surface levels. In
+dark mode, shadows disappear, so swap them for a low-opacity white
+border (~6 % opacity) to keep card edges legible. Keep the accent
+brighter (not darker) in dark mode — a darkened accent on a dark
+background dies.
+
+### Accent scarcity discipline (from rule 65)
+
+The accent earns its impact through restraint, not distribution.
+Establish a per-screen accent inventory and stop adding once it's full;
+typical inventory is one CTA-equivalent + one navigation/active state +
+one chart or progress highlight. Status colors in lists should also be
+diversified rather than clustered — three "completed" greens in a row
+flatten color into noise.
+
+## OD baseline (verbatim from upstream)
+
 Universal color rules applied on top of the active `DESIGN.md`. The
 design system supplies the palette tokens; this file enforces how to
 *use* them.
