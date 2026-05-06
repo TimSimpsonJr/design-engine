@@ -2,6 +2,59 @@
 
 > Verbatim from [nexu-io/open-design `craft/state-coverage.md`](https://github.com/nexu-io/open-design/blob/main/craft/state-coverage.md). design-engine additions block prepended in Phase 3.
 
+## design-engine principles
+
+### Skeleton craft (from rule 29)
+
+Skeleton placeholders should match the **shape** of the final content
+they replace — same card padding, same radius, same approximate text
+block sizes. A generic gray block where the chart will go reads as
+broken. Never put a spinner inside a card that will eventually fill —
+either show a skeleton matched to the layout or render the empty
+shell. Use a small display delay (~300 ms) so the skeleton doesn't
+flash on fast loads, plus a minimum display time once shown so it
+doesn't disappear too quickly. The pulse animation should run on a
+gentle ~1.5 s cycle.
+
+### Empty state composition (from rule 30)
+
+An empty state isn't a missing state — it's a state with a job. The
+required shape: an **icon** (small, muted), a **message** that names
+what's empty in conversational tone, and a **suggested next action**
+(either a clear CTA or an inline hint pointing to the path forward).
+Display zero values **as zero** (`$0`, `0%`, `0 users`) — never
+substitute a dash. Tone the message like a human ("No activity yet —
+try creating your first entry"), not like a server ("No data
+records found").
+
+### Error state with retry (from rule 30)
+
+When a single surface fails — one card, one row, one panel — show an
+error **scoped to that surface**, not a full-page failure. The shape:
+an alert icon, plain-language cause ("Couldn't load this data"), and a
+retry affordance. The surrounding sections keep rendering normally.
+Partial-data handling matters too: if 1 of N items fails to load, the
+others still display; the chart with insufficient data shows a "Not
+enough data" hint in place of axis chrome rather than vanishing.
+
+### Toast feedback policy (from rule 35)
+
+Toasts are a **single-channel** feedback mechanism. Universal rules:
+
+- One toast on screen at a time — a new toast immediately replaces
+  any current toast rather than stacking
+- Position is **fixed per artifact** — pick one location (typically
+  bottom of screen, above any persistent nav) and never vary it
+- Timing splits by content: ~3 seconds for plain info, ~5 seconds for
+  toasts that include an action ("Deleted. Undo")
+- Auto-dismissing toasts must be pausable on hover or focus (WCAG
+  2.2.1 — see `accessibility-baseline.md`)
+
+Toasts are for action confirmation, not for errors that need
+acknowledgment — those belong inline.
+
+## OD baseline (verbatim from upstream)
+
 Universal rules for what every interactive surface must render. The active
 `DESIGN.md` decides how each state looks; this file decides which states must
 exist and what they must contain. The single most reliable AI-design failure
