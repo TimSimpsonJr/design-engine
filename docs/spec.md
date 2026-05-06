@@ -87,7 +87,7 @@ Strict compliance with the [W3C Design Tokens Community Group draft](https://www
 
 ### `$type` inheritance
 
-Each top-level group sets `$type` once; descendants inherit. Override by setting `$type` on a child token.
+Each top-level group sets `$type` once; descendants inherit. Override by setting `$type` on a child token. Any group at any depth may set `$type`; the nearest ancestor wins.
 
 ### Aliases
 
@@ -136,7 +136,7 @@ Aliases use brace syntax referencing dotted paths: `"$value": "{color.brand}"`. 
   },
   "shadow": {
     "$type": "shadow",
-    "sm": { "$value": { "color": "#0000000a", "offsetX": "0", "offsetY": "1px", "blur": "2px", "spread": "0" } }
+    "sm": { "$value": { "color": "#000000", "offsetX": "0px", "offsetY": "1px", "blur": "2px", "spread": "0px" }, "$description": "Subtle shadow at 4% black" }
   },
   "motion": {
     "duration": { "$type": "duration", "fast": { "$value": "120ms" }, "base": { "$value": "200ms" } }
@@ -169,6 +169,8 @@ A short markdown document with five fixed H2 headings. Captures the taste signat
 <flatness vs. depth, texture, gloss/matte, photographic vs. illustrative>
 ```
 
+The five H2 headings are matched by text after stripping any leading `N.` prefix; numbering is optional but design-engine emits numbered.
+
 In foundation, `/design-init` scaffolds the empty template with the five headings and a stub note. Population happens later via canvas-side extraction (RFC [#21](https://github.com/TimSimpsonJr/design-engine/issues/21)). design-engine reads register.md if present and treats absence as "no register active."
 
 ---
@@ -186,6 +188,8 @@ In foundation, `/design-init` scaffolds the empty template with the five heading
 | 1, 4, 7, 8, 9 | narrative-only, not derived |
 
 Anything in DESIGN.md prose the parser can't extract is left out of tokens.json. This is by design: the narrative is the source of truth for taste and rationale, the tokens are the source of truth for precise values, and the projection drops what doesn't survive.
+
+If a derivable section is missing from DESIGN.md, the corresponding tokens.json group is omitted (preferred) — emitting empty groups is also spec-conformant.
 
 ### Reverse direction
 
