@@ -15,7 +15,7 @@ It also makes the plugin's bundled data more useful in its own right: where toda
 ## 2. Scope
 
 **In scope:**
-- Reorganize `data/` to mirror OD's layout (design-systems, craft, templates).
+- Reorganize `data/` to mirror OD's layout (design-systems, craft).
 - Spec `DESIGN.md` (9-section, OD format), `tokens.json` (W3C Design Tokens), `register.md` (5-section taste capture).
 - Triage all 69 rules in `skills/design-language/SKILL.md`; layer universal portions into `data/craft/<topic>.md` (OD's 8 topics) or `skills/design-engine/SKILL.md` (universals that don't fit those 8); narrow what remains into `skills/mobile-dashboard/SKILL.md`.
 - Update `/design-init`, `/design-skin`, `/design-tokens`, `/design-review`, `/design-lint` to read/write the new contract files. Add reverse-derivation for existing-themed repos.
@@ -23,7 +23,7 @@ It also makes the plugin's bundled data more useful in its own right: where toda
 
 **Out of scope:**
 - The OD fork itself (#19), its sync command (#20), advisory UX (#18), extraction/learning subsystem (#21), adapter consolidation (#22).
-- OD artifacts irrelevant to codebase enforcement: `prompt-templates/` (media JSONs), `assets/frames/` (device chrome), `apps/daemon/` (OD's runtime infrastructure).
+- OD artifacts irrelevant to codebase enforcement: `prompt-templates/` (media JSONs), `assets/frames/` (device chrome), `apps/daemon/` (OD's runtime infrastructure), `templates/<deck>.html` (deferred — no consumer in foundation, see Section 9).
 - Changes to non-foundation generation commands beyond a one-line "read DESIGN.md narrative if present" instruction. `/design-page`, `/design-pattern`, `/design-component`, `/design-copy`, `/design-flow`, `/design-feedback`, `/design-audit`, `/design-a11y`, `/design-recipe` keep their current implementations.
 - Any modifications to external repos (`dc-v1-onboarding` is reference-only; smoke-tested by the user post-merge).
 
@@ -38,7 +38,6 @@ It also makes the plugin's bundled data more useful in its own right: where toda
 | `data/skins/<name>.json` | `data/design-systems/<od-slug>/DESIGN.md` | OD format, OD slugs (`linear-app` not `linear`, etc.). 4 of 5 pulled verbatim from awesome-design-md upstream; Toss hand-authored. Kami added (so `data/templates/kami-deck.html` has its DESIGN.md). |
 | `data/tokens/{colors,typography,spacing,radii,shadows,motion}.json` | `data/tokens.json` (W3C Design Tokens, single file) | **Plugin-only addition** (not in OD). Default starter template stamped on `/design-init`. |
 | (new) `data/craft/<topic>.md` | OD's 8 topics by exact slug: `anti-ai-slop`, `accessibility-baseline`, `animation-discipline`, `color`, `form-validation`, `rtl-and-bidi`, `state-coverage`, `typography` | Universal rules from our 69 layered in. |
-| (new) `data/templates/<name>.html` | OD's deck templates pulled verbatim: `deck-framework.html`, `kami-deck.html` | OD-imported; awaits a future consuming skill (e.g., `skills/html-ppt/`). Pre-positioning, zero current consumers. |
 | `skills/design-language/SKILL.md` (mixed univ + UI-specific) | `skills/mobile-dashboard/SKILL.md` (UI-specific only) | Frontmatter description stays broad ("data-dense mobile-first UI — dashboards, KPI grids, fintech screens, …") to keep triggering on data-dense mobile websites too. |
 | `skills/{design-engine,composition-recipes}/SKILL.md` | unchanged, **labeled plugin-only extras** | Acknowledged divergence from OD. |
 | `data/recipes/*.json` | unchanged, **plugin-only** | Don't try to mismap to OD's `templates/` (deck HTML starters) or `prompt-templates/` (media JSONs); different artifact types. |
@@ -54,7 +53,24 @@ It also makes the plugin's bundled data more useful in its own right: where toda
 
 2. **Active DESIGN.md is runtime context.** The active design system's DESIGN.md gets read at runtime by skills (currently `.design-rules/config.json` points at the active skin JSON; new flow: `<project-root>/DESIGN.md` is the active narrative source).
 
-3. **Sidecar support.** OD's skills protocol allows `assets/`, `references/`, `templates/`, `scripts/`, `tests/` subdirs per skill. Structure permits them in `skills/mobile-dashboard/`; none ship today.
+3. **Sidecar support.** OD's skills protocol standardizes `SKILL.md`, `assets/`, `references/`, with `tests/` optional. `scripts/` and `templates/` are seen in practice but not part of the core contract. Structure permits sidecars in `skills/mobile-dashboard/`; none ship today.
+
+4. **Craft consumption contract.** OD's skills declare `od.craft.requires: [<topic>, ...]` in frontmatter; the daemon injects matching `craft/<topic>.md` content between the active DESIGN.md and the skill body at runtime. design-engine adopts the same frontmatter field for compatibility:
+
+   ```yaml
+   ---
+   name: mobile-dashboard
+   description: …
+   od.craft.requires: [color, typography, anti-ai-slop, state-coverage]
+   ---
+   ```
+
+   Consumption side: when a design-engine command runs in a context where a skill's craft requirements matter (`/design-review`, `/design-lint`, generation commands), the command-side prompt assembles the relevant `data/craft/<topic>.md` files and injects them as context. This is design-engine's analog to OD's daemon-injected craft. Mechanically simple in Claude Code: read the active skill's frontmatter, glob the requested craft topic files, prepend to the agent's working context.
+
+   Initial `od.craft.requires` declarations:
+   - `skills/design-engine/SKILL.md` → `[anti-ai-slop, color, typography, state-coverage, accessibility-baseline]`
+   - `skills/mobile-dashboard/SKILL.md` → `[color, typography, anti-ai-slop, state-coverage, animation-discipline]`
+   - `skills/composition-recipes/SKILL.md` → `[anti-ai-slop, typography]`
 
 ## 4. Schema specs
 
@@ -73,6 +89,12 @@ Adopted verbatim from awesome-claude-design / OD:
 9. **Agent Prompt Guide** — short instructions for AI consumers
 
 Section numbering is optional in OD-the-format (see `design-systems/default/DESIGN.md` unnumbered vs. `design-systems/airbnb/DESIGN.md` numbered). design-engine **emits numbered** for parser determinism but **accepts both** for round-trip.
+
+**Header metadata (per OD's `design-systems/README.md`):**
+
+- `data/design-systems/<slug>/DESIGN.md` (bundled) — **must include** the OD-canonical first H1 (`# Design System Inspired by <Name>`) and immediately-following `> Category: <Group>` line. Round-trips verbatim into the OD fork's catalog dropdown.
+- `<project-root>/DESIGN.md` (active in user project) — **carries through whatever's in the source**. When `/design-skin <name>` stamps a bundled DESIGN.md, the H1 + Category line travel with it. When derive mode generates from existing CSS, the H1 is stubbed (`# Design System`) and the Category line is omitted (acceptable per OD's parser, which treats absence as "uncategorized" / bottom-of-dropdown).
+- `~/.design-rules/design-systems/<slug>/DESIGN.md` (saved global) — same as bundled rule.
 
 ### 4.2. tokens.json — W3C Design Tokens spec
 
@@ -214,9 +236,13 @@ These are **defaults stamped into user projects on `/design-init`**; the active 
 **`/design-init`** — auto-detects mode:
 
 - **Scratch mode** (no existing theme): pick from bundled `data/design-systems/<slug>/DESIGN.md`, stamp `<root>/DESIGN.md` + `<root>/tokens.json` + `<root>/register.md`, generate theme.css from tokens.json.
-- **Derive mode** (existing theme detected): reverse-derive `tokens.json` from existing CSS, template-fill `DESIGN.md` skeleton from tokens (Sections 2/3/5/6 derived; Sections 1/4/7/8/9 left as TODO stubs), stamp `register.md` empty. **Don't overwrite the existing theme file** — it stays as the runtime artifact; `tokens.json` becomes canonical going forward.
+- **Derive mode** (existing theme detected): reverse-derive `tokens.json` from existing CSS, template-fill `DESIGN.md` skeleton from tokens (Sections 2/3/5/6 derived; Sections 1/4/7/8/9 left as TODO stubs), stamp `register.md` empty. The existing theme file (`globals.css`, `theme.css`, etc.) **becomes the managed file going forward** — design-engine writes back into it via theme-io's surgical-edit pattern (managed-block markers around touched CSS variables; user-added unmanaged CSS preserved in place). No new shadow theme file is injected. tokens.json is canonical; theme.css regenerates *into the existing file* on each token change.
+
+This resolves the apparent tension between "don't overwrite" and "tokens.json is canonical": the existing file isn't blasted (user-added rules survive), but managed-block CSS variables ARE rewritten on each token change. theme-io's existing managed-marker discipline handles this.
 
 Detection priority for derive mode: `components.json` (shadcn) → `tailwind.config.{js,ts}` v3 → `@theme` directive in any `*.css` → Astro/Svelte equivalents → fallback to scratch with confirmation prompt.
+
+Once detected, the resolved theme file path is recorded in `.design-rules/config.json` as `themeFile: "src/app/globals.css"` (or wherever it lives). Subsequent token writes target this path. theme-io grows a configurable target-path mode (currently hardcoded to the adapter's `theme/theme.css`).
 
 **`/design-skin`**:
 - 4-source lookup unchanged in structure; Source 4 caches DESIGN.md verbatim to `.design-rules/design-systems/<slug>/DESIGN.md` (no parse-and-discard).
@@ -256,9 +282,27 @@ Settings page reads/writes `tokens.json`; theme.css regenerates. All four adapte
 3. **sveltekit** — apply same pattern.
 4. **obsidian-css** — apply (Obsidian's settings-tab API is different but same idea: writes target tokens.json, plugin re-emits CSS).
 
-### 6.4. Commands that don't change
+### 6.4. Commands that don't change architecturally
 
-`/design-page`, `/design-pattern`, `/design-component`, `/design-copy`, `/design-flow`, `/design-feedback`, `/design-audit`, `/design-a11y`, `/design-recipe`, `/design-settings-page` (the scaffolding command), `/design-init --migrate` — each gets a one-line instruction update ("read `<root>/DESIGN.md` for narrative context if present"). No architectural changes.
+`/design-page`, `/design-pattern`, `/design-component`, `/design-copy`, `/design-flow`, `/design-feedback`, `/design-audit`, `/design-a11y`, `/design-recipe`, `/design-settings-page` (the scaffolding command) — each gets a one-line instruction update ("read `<root>/DESIGN.md` for narrative context if present"). No architectural changes.
+
+### 6.5. Backward-compat upgrade path
+
+Existing user projects already initialized with the current plugin have `.design-rules/config.json`, an active skin reference, and adapter `theme.css` at known paths. They have no `DESIGN.md`, no `tokens.json`, no `register.md`.
+
+**Upgrade trigger.** Any design-engine command run in a project with `.design-rules/config.json` but no `<root>/DESIGN.md`:
+
+1. Detect old-format state by `.design-rules/config.json.schemaVersion` absent or < 2.
+2. Resolve the active skin via the existing 4-source lookup. The bundled cache has been migrated to `data/design-systems/<slug>/DESIGN.md`, so the lookup returns DESIGN.md format.
+3. Stamp `<root>/DESIGN.md` from the resolved DESIGN.md.
+4. Derive `tokens.json` from DESIGN.md.
+5. Compare derived tokens.json against the existing theme.css; if values diverge (user customized after `/design-init`), preserve theme.css values in tokens.json and emit a warning that DESIGN.md may not reflect actual customizations.
+6. Stamp `register.md` empty.
+7. Bump `.design-rules/config.json.schemaVersion = 2` and add `themeFile: "<adapter>/theme/theme.css"` (or the derived path).
+
+**Saved global skins** (`~/.design-rules/skins/<name>.json`): convert lazily on first encounter. When `/design-skin <name>` is invoked and the local cache is old JSON format, run a one-shot `<json> → DESIGN.md` conversion (color values + font names → 9-section DESIGN.md skeleton with derived sections filled, narrative sections as TODO stubs), write to `~/.design-rules/design-systems/<slug>/DESIGN.md`, delete the old JSON file.
+
+**Migration safety.** All upgrades are non-destructive: existing files are read, new files added, old files left in place initially. Old `data/skins/`, `data/tokens/{6 files}.json`, and `~/.design-rules/skins/<name>.json` only get deleted **after** the rewired commands consume the new format (Phase 5, not Phase 3 — see updated phasing).
 
 ## 7. Phasing and gates
 
@@ -284,38 +328,40 @@ Topic-by-topic:
 
 1. For each `data/craft/<topic>.md`, prepend design-engine additions block per Section 5.2.
 2. Update `skills/design-engine/SKILL.md` with universals that don't fit OD's 8 topics (UNIV-EXTRA bucket).
-3. Build `data/tokens.json` (W3C default template) by aggregating TOK values pulled out during triage.
+3. Build `data/tokens.json` (W3C default template) by aggregating TOK values pulled out during triage. **Old `data/tokens/{6 files}.json` stay in place for now** — deletion deferred to Phase 5 after readers are rewired.
 4. Rewrite `skills/design-language/SKILL.md` → `skills/mobile-dashboard/SKILL.md` with only UI-DASH content remaining.
-5. Delete `data/tokens/{6 files}.json` (subsumed by `data/tokens.json`).
+5. Add `od.craft.requires` frontmatter to `skills/{design-engine,mobile-dashboard,composition-recipes}/SKILL.md` per Section 3 craft consumption contract.
 
 **Gate 3:** Spot-check 4-5 rules to confirm they landed where the sheet said. Quick.
 
 ### **Mid-session breakpoint (recommended walk-away)**
 
-At this point: triage done, craft layer populated, mobile-dashboard skill cleaned. No command code touched. Safe to step away and resume with fresh eyes if desired.
+At this point: triage done, craft layer populated, mobile-dashboard skill cleaned, craft consumption contract declared. No command code touched, no old files removed. Safe to step away and resume with fresh eyes if desired.
 
-### Phase 4 — Restructure design systems + helper additions
+### Phase 4 — Restructure design systems
 
-1. `data/skins/<name>.json` → `data/design-systems/<od-slug>/DESIGN.md`. Pull 4 from upstream verbatim (Stripe, Vercel, Linear→`linear-app`, Notion); hand-author Toss; add Kami.
-2. `data/templates/{deck-framework.html, kami-deck.html}` pulled verbatim from OD.
-3. Update `data/awesome-design-md-index.json` if needed (slug normalizations).
+1. `data/skins/<name>.json` → `data/design-systems/<od-slug>/DESIGN.md`. Pull 4 from upstream verbatim (Stripe, Vercel, Linear→`linear-app`, Notion); hand-author Toss; add Kami. Each bundled DESIGN.md includes the OD-canonical `# Design System Inspired by …` H1 + `> Category: <Group>` line.
+2. Update `data/awesome-design-md-index.json` if needed (slug normalizations).
+3. Old `data/skins/<name>.json` stay in place for now — deletion deferred to Phase 5 after readers are rewired.
 
 ### Phase 5 — Command rewiring
 
 In dependency order:
 
-1. `theme-io.ts` — gain `tokens.json` reader/writer; theme.css emission becomes derived. Tests for round-trip.
+1. `theme-io.ts` — gain `tokens.json` reader/writer; theme.css emission becomes derived; gain configurable target-path mode (so derive-mode can target an existing `globals.css` instead of the adapter's `theme/theme.css`). Tests for round-trip.
 2. **DESIGN.md → tokens.json derivation module** (`design-md-parse.ts`) — parse Sections 2/3/5/6 into W3C tokens. Tests with airbnb / stripe / linear-app / kami DESIGN.md fixtures. **Codex-reviewed before downstream commands consume it** — wrong parser = bad data downstream.
-3. theme.css → tokens.json reverse derivation (init derive mode only). Tests with shadcn/Tailwind v4 fixtures committed under `tests/fixtures/` (not external repos).
-4. `/design-init` — both scratch and derive modes; auto-detect; stamp DESIGN.md + tokens.json + register.md.
-5. `/design-skin` — Source 4 caches DESIGN.md verbatim; on apply, copy to root + derive + regen theme.css.
-6. `/design-tokens` — operates on tokens.json; new `sync` and `sync --reverse` subcommands.
-7. `/design-review`, `/design-lint` — load tokens.json as canonical value set; flag deviations.
-8. **Settings page rewire (4 adapters)** — react-shadcn first as pattern-establishing pilot. **Codex-reviewed after the first adapter** before fanning out to astro/sveltekit/obsidian-css.
-9. `/design-init --migrate` — verify still works with new contract files.
-10. Other commands — one-line updates to read DESIGN.md narrative when available.
+3. **theme.css → tokens.json reverse derivation** (`theme-css-parse.ts`, init derive mode only). Tests with shadcn/Tailwind v4, plain Tailwind v3, Astro, Svelte 5 fixtures committed under `tests/fixtures/` (not external repos). **Codex-reviewed before `/design-init` consumes it** — reverse derivation is much harder than forward, more failure modes (oklch math, hsl expressions, @theme syntax variants), bigger blast radius if wrong.
+4. **Backward-compat upgrade path** (Section 6.5) — implement detection, lazy migration, and `schemaVersion` bump.
+5. `/design-init` — both scratch and derive modes; auto-detect; stamp DESIGN.md + tokens.json + register.md; trigger upgrade path for existing-project state.
+6. `/design-skin` — Source 4 caches DESIGN.md verbatim; on apply, copy to root + derive + regen theme.css; lazy-migrate old saved global skins on encounter.
+7. `/design-tokens` — operates on tokens.json; new `sync` and `sync --reverse` subcommands.
+8. `/design-review`, `/design-lint` — load tokens.json as canonical value set; flag deviations.
+9. **Settings page rewire (4 adapters)** — react-shadcn first as pattern-establishing pilot. **Codex-reviewed after the first adapter** before fanning out to astro/sveltekit/obsidian-css.
+10. `/design-init --migrate` — re-audited end-to-end. The current migrate flow is theme.css-centric; verify it still works with tokens.json canonical and the new contract files. Update if needed.
+11. Other commands — one-line updates to read DESIGN.md narrative when available.
+12. **Delete old data files** — `data/tokens/{6 files}.json`, `data/skins/<name>.json` removed now that all readers consume the new format.
 
-**Gate 4:** All tests pass; manual smoke-test of `/design-init` scratch and derive against bundled fixtures; version bump in `.claude-plugin/plugin.json`; MANIFEST.md regenerated; PR opened.
+**Gate 4:** All tests pass; manual smoke-test of `/design-init` scratch and derive against bundled fixtures; verify upgrade path against a fixture-mocked old-format project; version bump in `.claude-plugin/plugin.json`; MANIFEST.md regenerated; PR opened.
 
 ### 7.1. Cross-model reviews (codex)
 
@@ -323,7 +369,8 @@ Per `/cross-model-review` plugin:
 - After this design doc lands → `/cross-model-review-now design`
 - After the implementation plan lands → `/cross-model-review-now plan`
 - After Phase 5.2 (DESIGN.md parser) → ad-hoc codex review before commands consume the parser
-- After Phase 5.8 first adapter (react-shadcn settings-page rewire) → ad-hoc codex review before fanning out to other 3 adapters
+- After Phase 5.3 (theme.css → tokens.json reverse derivation) → ad-hoc codex review before `/design-init` consumes it
+- After Phase 5.9 first adapter (react-shadcn settings-page rewire) → ad-hoc codex review before fanning out to other 3 adapters
 
 ## 8. Validation
 
@@ -342,9 +389,11 @@ After PR merges and plugin reinstalls (out of foundation scope, post-merge):
 ## 9. Open items / follow-ups
 
 - **OD slug normalization for awesome-design-md-index.** Verify our index uses OD's exact normalized slugs (`linear-app` not `linear`, `x-ai` not `x.ai`). One-time pass during Phase 4.
-- **`/design-init --migrate` interaction with derive mode.** When migrating between adapters, does the new adapter pick up the derive-mode `tokens.json` cleanly? Verified in Phase 5.9.
+- **`/design-init --migrate` interaction with derive mode.** When migrating between adapters, does the new adapter pick up the derive-mode `tokens.json` cleanly, and does the recorded `themeFile` path get updated correctly? Verified in Phase 5.10.
 - **Toss DESIGN.md authoring.** Toss isn't in awesome-design-md upstream; we hand-author. Source: existing `data/skins/toss.json` + Toss's public design system documentation.
-- **Reverse-derive coverage gaps.** Some shadcn/Tailwind v4 patterns may not parse cleanly (e.g., `oklch()` color values, complex `hsl()` math expressions). Phase 5.3 fixtures should cover the common cases; edge cases land as `# TODO` stubs in the generated DESIGN.md for the user to address.
+- **Reverse-derive coverage gaps.** Some shadcn/Tailwind v4 patterns may not parse cleanly (e.g., `oklch()` color values, complex `hsl()` math expressions, CSS calc() in token values). Phase 5.3 fixtures cover common cases; edge cases land as `# TODO` stubs in the generated DESIGN.md for the user to address. Codex review at gate-after-5.3 should specifically poke at parser robustness.
+- **`data/templates/*.html` (deck starters).** Deferred — pre-positioning without consumers is scope creep. Pull in when a consuming skill (e.g., `skills/html-ppt/`) lands. Out of foundation scope.
+- **DESIGN.md sections missing or malformed.** Robustness of the parser when bundled or user-edited DESIGN.md drops sections, reorders them, or uses idiosyncratic subsection headings. Decision: parser tolerates missing sections (emits empty token groups), tolerates reordering (matches by H2 text), warns on unknown H2 headings without failing. Codified in Phase 5.2 tests.
 - **OD-fork PR-back surface.** When the OD fork ships (#19), the design-engine additions in `data/craft/<topic>.md` are candidate upstream PRs. Out of scope here, but the "design-engine first / OD baseline second" structure makes the PR surface mechanical.
 
 ---
