@@ -545,6 +545,194 @@ For notch/Dynamic Island support on mobile:
 - Use `size-4` instead of `w-4 h-4` (Tailwind v4 shorthand)
 - Use `ms-*` instead of `ml-*` (logical properties, RTL support)
 
+## Universal craft principles (from design-language triage)
+
+These principles came out of the design-language triage (Phase 3 of
+the foundation-od-schema work). Each is a universal craft rule that
+didn't fit any of the eight OD craft topics, so it lands here as
+part of the always-on design-engine layer. See
+`docs/triage-69-rules.md` for the routing decisions.
+
+### Number formatting conventions (from rule 22)
+
+Display formatting is part of craft, not engineering. Universal
+defaults that work for most products:
+
+- **Decimals by data type.** Whole-dollar amounts as integers
+  (`$48`, `$1,520`). Million / storage / international price units at
+  one decimal place (`3.8M`, `18.2GB`, `$68.4`). Percentages at one
+  decimal place (`+12.4%`). Counts of people / days as integers.
+- **Thousand separators are required** on any number above 999.
+  Use the platform's locale-aware formatter (`toLocaleString`,
+  `Intl.NumberFormat`, equivalent), not hand-rolled comma insertion.
+- **Date formats are role-specific.** Long dates in headers use a
+  full readable form ("Friday, March 27, 2026"); chart axes use a
+  compact form ("03/20"); relative-time labels switch to absolute
+  dates after about a week.
+
+### Negative-value display (from rule 31)
+
+Use a **leading minus sign** for negative numbers, not parentheses.
+`-$1.8K` not `($1.8K)`. Negative amounts get the destructive color
+(or its accessibility-corrected equivalent); zero gets the default
+text color and no trend chrome (no up-arrow, no down-arrow). Up- and
+down-trends pair an explicit `+` or `-` prefix with the matching
+trend icon and color.
+
+### Microcopy tone (from rule 34)
+
+A casual-but-polite voice across all UX writing. The tone rules:
+
+- **Conversational over corporate.** "Couldn't load the data" beats
+  "An error has occurred while retrieving the requested data".
+- **Blame the system, not the user.** "Your connection seems
+  unstable" beats "A network error has occurred".
+- **Empty states suggest the next action.** "No activity yet — try
+  creating your first entry" beats "No data".
+- **Section labels are noun phrases.** "Sales Overview", "Recent
+  Orders" — not "Check your sales".
+
+This tone applies everywhere: empty states, errors, toasts, button
+labels, modal copy. See also rule 49 below for the extended UX-writing
+rules.
+
+### Modal vs page decision criteria (from rule 36)
+
+A universal decision tree for when to use a modal / sheet vs a full
+page:
+
+| Content | UI |
+|---|---|
+| Short confirmation or warning | Bottom sheet (small, ~25% height) |
+| Filter, picker, short form | Bottom sheet (medium, ~50% height) |
+| Detail info that needs scroll | Full page push |
+| Settings, complex forms | Full page push |
+
+Bottom sheets need a top-only radius, a drag-handle affordance, and
+a backdrop with both a tap-to-close and a swipe-down close path. Any
+modal or sheet must always be closable — see "Dark pattern
+prevention" in `craft/anti-ai-slop.md`.
+
+### Tab and navigation universals (from rule 42)
+
+Universal navigation patterns that aren't dashboard-specific:
+
+- **Re-tapping the active tab scrolls the page back to the top** —
+  the iOS / Material 3 / web platform convention. Implement it.
+- **Page transition direction encodes hierarchy.** Sub-page push uses
+  right-to-left slide; back navigation uses the reverse. Modals and
+  sheets slide bottom-to-top. Tab switches are instant — no
+  animation. Direction-as-meaning is universal.
+- **Back-button semantics are predictable.** A back button always
+  returns to the prior surface in this stack, never a different tab
+  or a "smarter" inferred destination. Place it consistently
+  (typically top-left, ~44×44 tap area).
+
+### UX writing details (from rule 49)
+
+Extends the microcopy tone above. Universal voice principles for
+product copy:
+
+- **Use active voice.** "We completed your order" beats "Your order
+  has been completed". Reserve passive for result notifications.
+- **Frame positively even in errors.** "Connect to Wi-Fi for a
+  faster experience" beats "Your internet connection is unstable" —
+  always include a resolution path.
+- **Casual but polite.** "What's your name?" beats "Would you kindly
+  provide your full name?". Strip unnecessary formality.
+- **Plain language over jargon.** "Send money" beats "Initiate
+  remittance".
+- **CTA labels state what happens next.** "Place order", "Confirm",
+  "Get started" — never vague ("Get benefits") or descriptive ("Protect
+  your health with fresh ingredients"). One primary CTA per screen.
+
+### Drawer vs bottom sheet vs full page (from rule 55)
+
+Three layout containers, three distinct purposes:
+
+| Content | Container |
+|---|---|
+| Simple confirmation or short selection | Bottom sheet |
+| Detail data with minimal scrolling | Drawer (side panel) |
+| Complex form, multi-step, or long content | Full page push |
+
+Drawers slide in from the side (typically right) at moderate duration
+(~300 ms). They include a header with title + close, scrollable
+content, and an optional fixed footer. Use them when the user needs
+context from the underlying surface — full pages break that
+context, bottom sheets cover too much of it.
+
+### Confirm dialog structure (from rule 56)
+
+Universal layout for confirm / alert dialogs (the dark-pattern
+prevention rules — "Close not Cancel", destructive button uses
+destructive color — live in `craft/anti-ai-slop.md`):
+
+- Centered card on a dimmed backdrop; backdrop tap dismisses
+- Title (~16 px semibold), centered
+- Message (~14 px, normal weight), centered, plain language
+- Two buttons in a horizontal pair, both `flex-1`, with the close /
+  cancel action on the **left** and the action CTA on the **right**
+
+Keep the dialog small — if the content needs more than a sentence or
+two of message text, it belongs in a bottom sheet or page, not a
+modal.
+
+### Custom icon API conventions (from rule 57)
+
+A self-contained icon library should converge on these conventions
+so icons interoperate across components:
+
+- **24×24 viewBox** for all icons in the set
+- **Stroke-based** rendering, not fill-based (with rare exceptions
+  for solid-by-design glyphs)
+- **`currentColor` default** so icons inherit text color from the
+  surrounding context
+- **Round line caps and joins** (`stroke-linecap="round"`,
+  `stroke-linejoin="round"`)
+- **Configurable strokeWidth** so the icon can match the size /
+  legibility ladder in `craft/anti-ai-slop.md` (rule 25)
+
+These conventions apply to any icon set, whether built in-house or
+customizing one from a library.
+
+### Token usage discipline (from rule 58)
+
+When a stack offers both class-based tokens (Tailwind classes,
+utility CSS) and a token object (TypeScript / JS), pick by use case:
+
+- **Static styles** → class-based tokens (`text-text-primary`,
+  `bg-card`)
+- **Dynamic styles** that depend on runtime values → token object
+  (chart colors, conditional fills, inline `style={…}`, CSS-in-JS)
+- **Chart libraries** (Recharts, Visx, etc.) almost always need the
+  token object since they accept color props rather than classes
+
+The rule is: classes when the value is fixed at authoring time,
+token object when the value is computed at runtime. Don't use
+inline `style={{ color: '#3C3C3C' }}` with a hardcoded hex when a
+token is available.
+
+### Formatting utility conventions (from rule 60)
+
+Centralize display-formatting helpers in a shared utilities module
+(`utils/format` or equivalent) and **always call them at display
+time** rather than calling locale APIs directly at the use site.
+Universal helpers worth shipping:
+
+- `formatCurrency(amount)` — handles K / M / B unit conversion
+- `splitNumberUnit(value)` — returns `{ number, unit }` for the
+  large-number-+-small-unit pattern (paired with whitespace-nowrap)
+- `formatPercent(value)` — adds `+` / `-` prefix, fixed decimals
+- `formatDate(date)` — returns the long readable form
+- `formatRelativeTime(date)` — returns "3 min ago" / "Yesterday" /
+  absolute date past ~7 days
+
+Centralizing these means one place to fix locale bugs, one place to
+adjust unit thresholds, one place to handle edge cases (zero values,
+negative amounts, missing data). Direct `.toLocaleString()` calls
+sprinkled across components are a maintenance trap.
+
 ## Token Source Files (framework-agnostic)
 
 The token JSON files ship in the design-engine plugin at `data/tokens/`. Adapter-specific implementations of these tokens (CSS variables, Tailwind theme directives, etc.) are written by `/design-init` to the user's project.
