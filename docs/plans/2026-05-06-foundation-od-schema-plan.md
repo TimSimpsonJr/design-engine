@@ -6,14 +6,21 @@
 
 **Architecture:** Five-phase rollout. Phase 1 lands schema specs as docs. Phase 2 builds the rule-triage sheet (HARD user gate before action). Phase 3 actions the triage. Phase 4 restructures bundled design-systems. Phase 5 rewires commands and adapter settings pages. DESIGN.md is the canonical narrative; tokens.json is canonical precise (one-way derived from DESIGN.md); theme.css is generated from tokens.json. Mid-session walk-away point after Phase 3.
 
-**Tech Stack:** TypeScript (Node `--test` runner — see `tests/package.json`), markdown for skills/specs, JSON for tokens, CSS for theme files. No build step; the plugin is static.
+**Tech Stack:** TypeScript (Node `--test` runner with `--experimental-strip-types` per `tests/package.json`), markdown for skills/specs, JSON for tokens, CSS for theme files. No build step; the plugin is static.
 
 **Companion design doc:** `docs/plans/2026-05-06-foundation-od-schema-design.md`. Reference it heavily — section numbers below cite that doc unless noted otherwise.
 
+## Execution conventions
+
+- **Shell:** project runs on Windows with PowerShell as the user shell. Subagents have the Bash tool available; plan command examples use Bash syntax for `gh api`, `curl`, `grep`, `for` loops, and brace expansion. Use the Bash tool for those. Use PowerShell for simple file ops if preferred.
+- **Test invocation:** always run via `cd tests && npm test`, OR equivalently `cd tests && node --experimental-strip-types --test ./<file>.test.ts`. Plain `node --test foo.test.ts` will fail because of the TS strip-types requirement.
+- **Real-world CSS variable convention:** existing `tests/fixtures/theme-*.css` use FLAT names without group prefixes — `--brand`, `--primary`, `--background`, `--card`, `--foreground`, `--radius`, `--font-sans`, etc. Match this convention everywhere. The `theme-io.ts` writer takes flat CSS variable names and groups them in tokens.json by type-detection (color values → `color` group; dimensions with `radius-` prefix → `radius` group; font family strings → `font` group; etc.). When emitting CSS from tokens.json, reverse the grouping to flat: `tokens.color.brand` → `--brand`, `tokens.radius.lg` → `--radius-lg`.
+
 **Cross-model review gates (codex):**
 - After this plan lands → `/cross-model-review-now plan`
-- After Task 5.2 (DESIGN.md parser) → ad-hoc codex review before Task 5.5+
+- After Task 5.2 (DESIGN.md parser) → ad-hoc codex review before Task 5.5
 - After Task 5.3 (reverse derivation) → ad-hoc codex review before Task 5.5
+- After Task 5.5b (upgrade-path integration test) → ad-hoc codex review before Task 5.6 — high-risk for compounding errors in user projects
 - After Task 5.9 (first adapter rewire) → ad-hoc codex review before Tasks 5.10–5.12
 
 **User gates:**
@@ -222,21 +229,7 @@ Each task in this phase reads the approved triage sheet and actions a slice of i
 
 ### Task 3.1: Prepend design-engine additions to each `data/craft/<topic>.md`
 
-**Files:**
-- Modify: `data/craft/anti-ai-slop.md`
-- Modify: `data/craft/accessibility-baseline.md`
-- Modify: `data/craft/animation-discipline.md`
-- Modify: `data/craft/color.md`
-- Modify: `data/craft/form-validation.md`
-- Modify: `data/craft/rtl-and-bidi.md`
-- Modify: `data/craft/state-coverage.md`
-- Modify: `data/craft/typography.md`
-
-**Step 1: For each topic, gather rules from the triage sheet whose `Dest(s)` includes that topic**
-
-Filter `docs/triage-69-rules.md` for each topic.
-
-**Step 2: Author the design-engine additions block**
+This is split into 8 sub-tasks — one per OD topic. Each sub-task is a focused unit of work for a fresh subagent: read the triage sheet for one topic, distill the relevant rules' universal portions, prepend the additions block.
 
 Per design-doc Section 5.2, structure each file as:
 
@@ -260,22 +253,49 @@ Per design-doc Section 5.2, structure each file as:
 
 The "## OD baseline" delimiter must be exact — it's the upstream-sync mechanical marker.
 
-For each rule, distill to its principle (universal portion). Skip values (those go in tokens.json) and dashboard-specific applications (those stay in mobile-dashboard).
+For each rule:
+- Distill to its principle (universal portion)
+- Skip concrete values (those go in tokens.json — Task 3.3)
+- Skip dashboard-specific applications (those stay in mobile-dashboard — Task 3.4)
 
-**Step 3: Verify each modified file**
+**Sub-tasks 3.1.a through 3.1.h:**
 
-Run: `wc -l data/craft/*.md`
-Expected: each file grew (additions block landed before OD baseline).
+| Sub-task | File | Approx rule count from triage | Done-when |
+|---|---|---|---|
+| 3.1.a | `data/craft/color.md` | likely 5-8 rules (Rule 1, 4, 39, 65, etc.) | additions block prepended; OD baseline preserved verbatim; new file > original line count; `## OD baseline (verbatim from upstream)` line present exactly once |
+| 3.1.b | `data/craft/typography.md` | likely 3-5 rules (Rule 3, others from triage) | same |
+| 3.1.c | `data/craft/anti-ai-slop.md` | likely 5-10 rules (Rule 18 prohibitions, etc.) | same |
+| 3.1.d | `data/craft/state-coverage.md` | likely 3-5 rules (Rule 29, 30) | same |
+| 3.1.e | `data/craft/accessibility-baseline.md` | likely 2-4 rules (Rule 41, others) | same |
+| 3.1.f | `data/craft/animation-discipline.md` | likely 2-4 rules (Rule 43, 59) | same |
+| 3.1.g | `data/craft/form-validation.md` | likely 0-3 rules (probably few in our 69) | same — may end up with empty additions block, which is fine; commit anyway for completeness |
+| 3.1.h | `data/craft/rtl-and-bidi.md` | likely 0-1 rules (Rule 33 CJK is closest match) | same |
 
-Run: `grep -l "## OD baseline (verbatim from upstream)" data/craft/*.md | wc -l`
-Expected: `8`.
+For each sub-task:
 
-**Step 4: Commit per topic (or all together if scope is small)**
+**Step 1:** Filter `docs/triage-69-rules.md` for rows where `Dest(s)` contains the topic.
+**Step 2:** Read those rules in `skills/design-language/SKILL.md`.
+**Step 3:** Distill universal portions; author the additions block; prepend before `## OD baseline …` (insert it if not yet present).
+**Step 4:** Verify `## OD baseline (verbatim from upstream)` appears exactly once.
 
 ```bash
-git add data/craft/
-git commit -m "feat(craft): layer design-engine principles on top of OD baseline"
+grep -c "## OD baseline (verbatim from upstream)" data/craft/<topic>.md
 ```
+Expected: `1`.
+
+**Step 5:** Commit per topic.
+
+```bash
+git add data/craft/<topic>.md
+git commit -m "feat(craft/<topic>): layer design-engine principles on top of OD baseline"
+```
+
+**Final verification across all 8:**
+
+```bash
+test $(grep -l "## OD baseline (verbatim from upstream)" data/craft/*.md | wc -l) -eq 8 && echo OK
+```
+Expected: `OK`.
 
 ---
 
@@ -448,10 +468,24 @@ od.craft.requires:
   - typography
 ```
 
-**Step 3: Verify**
+**Step 3: Verify each declared `od.craft.requires` value resolves to an existing craft file**
 
-Run: `grep -l "od.craft.requires" skills/*/SKILL.md | wc -l`
-Expected: `3`.
+Run a verification check that every topic listed in any skill's `od.craft.requires` has a matching `data/craft/<topic>.md`:
+
+```bash
+# Extract all od.craft.requires values from all skills, dedupe, verify each file exists
+for topic in $(grep -A 10 "od.craft.requires:" skills/*/SKILL.md | grep -E "^\s*-\s+\w" | sed 's/^[[:space:]]*-[[:space:]]*//' | sort -u); do
+  test -f "data/craft/${topic}.md" && echo "OK: $topic" || echo "MISSING: $topic"
+done
+```
+Expected: all `OK:`, no `MISSING:`. Any miss → fix the skill's frontmatter or add the missing craft file before proceeding.
+
+Also verify all 3 skills have the field:
+
+```bash
+test $(grep -l "od.craft.requires:" skills/*/SKILL.md | wc -l) -eq 3 && echo OK
+```
+Expected: `OK`.
 
 **Step 4: Commit**
 
@@ -497,9 +531,9 @@ for slug in stripe vercel linear-app notion; do
 done
 ```
 
-**Step 3: Verify each file has the OD-canonical header**
+**Step 3: Verify each file has the OD-canonical header; normalize if missing**
 
-Per design-doc Section 4.1 header metadata rules:
+Per design-doc Section 4.1 header metadata rules: bundled DESIGN.md files **must** include the OD-canonical first H1 (`# Design System Inspired by …`) and `> Category: <Group>` line.
 
 ```bash
 for slug in stripe vercel linear-app notion; do
@@ -508,7 +542,12 @@ for slug in stripe vercel linear-app notion; do
 done
 ```
 
-Expected: each starts with `# Design System Inspired by …` H1 followed by `> Category: <Group>` line. If missing, the upstream file lacks them — do not add by hand; flag as upstream issue and proceed.
+For each file:
+- If H1 starts with `# Design System Inspired by …` AND second line starts with `> Category:` → leave as-is.
+- If H1 is non-canonical (e.g., `# Stripe Design System` or just `# Stripe`) → rewrite the H1 to `# Design System Inspired by <Name>` (where `<Name>` is the brand display name from `data/awesome-design-md-index.json` or the slug capitalized).
+- If `> Category:` line is missing → insert it on the line after H1, with the category drawn from `data/awesome-design-md-index.json` if present, else use `Uncategorized` or the slug-derived category.
+
+This is a contract requirement, not a relaxation: bundled files must be OD-importable verbatim.
 
 **Step 4: Validate 9 sections present**
 
@@ -586,10 +625,13 @@ mkdir -p data/design-systems/kami
 gh api repos/nexu-io/open-design/contents/design-systems/kami/DESIGN.md --jq '.content' | base64 -d > data/design-systems/kami/DESIGN.md
 ```
 
-**Step 2: Verify**
+**Step 2: Verify and normalize header**
 
 Run: `head -5 data/design-systems/kami/DESIGN.md`
-Expected: H1 (`# 紙 / 纸` or similar) and `> Category:` line.
+
+If the file uses a non-canonical H1 like `# 紙 / 纸` (the upstream Kami source's display name), rewrite to `# Design System Inspired by Kami` (matching OD's other bundled headers); preserve the original display name in the `> Category:` line or as a subtitle. Bundled files must conform to the canonical H1 contract.
+
+Expected after normalization: H1 starts with `# Design System Inspired by Kami` and second line starts with `> Category:`.
 
 **Step 3: Commit**
 
@@ -642,7 +684,7 @@ git commit -m "fix(index): align slugs with awesome-design-md upstream (linear-a
 
 ## Phase 5: Command rewiring
 
-This is the largest phase by code volume. Most tasks here include test-first development. Test runner: `cd tests && npm install --no-save && node --test` (per existing convention, see `tests/package.json`).
+This is the largest phase by code volume. Most tasks here include test-first development. Test runner: `cd tests && npm install --no-save && npm test` (or `npm test -- ./<file>.test.ts` to run a single file). The `npm test` script invokes `node --test --experimental-strip-types ./*.test.ts` per `tests/package.json` — strip-types is required for the TS test files.
 
 ### Task 5.1: theme-io.ts — tokens.json reader/writer + configurable target path
 
@@ -654,52 +696,78 @@ This is the largest phase by code volume. Most tasks here include test-first dev
 
 **Step 1: Write the failing test**
 
+Tests use REAL fixture conventions (`tests/fixtures/theme-standard.css` etc.) — flat variable names, no `--color-` prefix.
+
 ```typescript
 // tests/theme-io.tokens.test.ts
 import { test } from 'node:test';
 import * as assert from 'node:assert';
+import * as fs from 'node:fs';
 import { readTokensFromCss, writeTokensToCss } from '../adapters/react-shadcn/templates/theme-io';
 
-test('readTokensFromCss extracts CSS variables into W3C tokens.json shape', () => {
-  const css = `
-    :root {
-      --color-brand: #ff385c;
-      --spacing-1: 4px;
-    }
-  `;
+test('readTokensFromCss groups flat CSS vars by type-detection', () => {
+  const css = fs.readFileSync('tests/fixtures/theme-standard.css', 'utf8');
   const tokens = readTokensFromCss(css);
-  assert.deepEqual(tokens.color.brand, { $value: '#ff385c' });
-  assert.deepEqual(tokens.spacing['1'], { $value: '4px' });
+  // type-detected: hex/oklch values → color group
+  assert.equal(tokens.color.brand?.$value, '#721FE5');
+  assert.equal(tokens.color.background?.$value, '#FAFAFA');
+  assert.equal(tokens.color.destructive?.$value, '#d4183d');
 });
 
-test('writeTokensToCss emits :root block from W3C tokens', () => {
+test('readTokensFromCss recognizes radius-prefixed vars as radius group', () => {
+  const css = `:root { --radius: 0.625rem; --radius-lg: 1rem; --brand: #abc; }`;
+  const tokens = readTokensFromCss(css);
+  assert.equal(tokens.radius.default?.$value, '0.625rem');
+  assert.equal(tokens.radius.lg?.$value, '1rem');
+  assert.equal(tokens.color.brand?.$value, '#abc');
+});
+
+test('readTokensFromCss recognizes font-prefixed vars as font group', () => {
+  const css = `:root { --font-sans: 'Inter', system-ui; --font-mono: 'JetBrains Mono'; }`;
+  const tokens = readTokensFromCss(css);
+  assert.ok(tokens.font.sans);
+  assert.ok(tokens.font.mono);
+});
+
+test('writeTokensToCss emits flat CSS var names without group prefix', () => {
   const tokens = {
-    color: { $type: 'color', brand: { $value: '#ff385c' } },
-    spacing: { $type: 'dimension', '1': { $value: '4px' } }
+    color: { $type: 'color', brand: { $value: '#ff385c' }, background: { $value: '#fff' } },
+    radius: { $type: 'dimension', default: { $value: '0.625rem' }, lg: { $value: '1rem' } },
   };
   const css = writeTokensToCss(tokens);
-  assert.match(css, /--color-brand:\s*#ff385c/);
-  assert.match(css, /--spacing-1:\s*4px/);
+  assert.match(css, /--brand:\s*#ff385c/);          // no --color- prefix
+  assert.match(css, /--background:\s*#fff/);
+  assert.match(css, /--radius:\s*0\.625rem/);       // 'default' → bare name
+  assert.match(css, /--radius-lg:\s*1rem/);         // non-default → suffix
 });
 
-test('writeTokensToCss preserves user-added unmanaged CSS', () => {
+test('writeTokensToCss preserves user-added unmanaged CSS via managed-block markers', () => {
   const existing = `
     :root {
-      --color-brand: #old;
-      --my-custom: 42px;  /* user-added, unmanaged */
+      --brand: #old;
+      --my-custom: 42px;
     }
   `;
   const tokens = { color: { $type: 'color', brand: { $value: '#new' } } };
   const result = writeTokensToCss(tokens, { existing });
-  assert.match(result, /--color-brand:\s*#new/);
+  assert.match(result, /--brand:\s*#new/);
   assert.match(result, /--my-custom:\s*42px/);  // user-added survives
+});
+
+test('writeTokensToCss respects configurable target file path', () => {
+  // theme-io must support targeting an arbitrary CSS file path
+  // (e.g., src/app/globals.css for derive mode), not just adapter's theme/theme.css.
+  // This test verifies the function takes an `existing` string from any source.
+  const tokens = { color: { $type: 'color', primary: { $value: '#abc' } } };
+  const result = writeTokensToCss(tokens, { existing: ':root { --primary: #old; }' });
+  assert.match(result, /--primary:\s*#abc/);
 });
 ```
 
 **Step 2: Run test, verify it fails**
 
 ```bash
-cd tests && node --test theme-io.tokens.test.ts
+cd tests && npm test -- ./theme-io.tokens.test.ts
 ```
 Expected: FAIL — `readTokensFromCss` and `writeTokensToCss` don't exist.
 
@@ -708,15 +776,40 @@ Expected: FAIL — `readTokensFromCss` and `writeTokensToCss` don't exist.
 Add `readTokensFromCss(css: string): Tokens` and `writeTokensToCss(tokens: Tokens, options?: { existing?: string }): string` to `theme-io.ts`. The functions complement (don't replace) the existing `parseTokens`/`writeTokens` API.
 
 Behavior:
-- `readTokensFromCss`: regex-extract CSS variables; group by `--<group>-<name>` prefix into `tokens.<group>.<name>`. Recognize `color`, `spacing`, `radius`, `shadow`, `motion`, `font`, `typography` prefixes; unknown prefixes go in a fallback `extra` group.
-- `writeTokensToCss`: walk tokens.json groups, emit `:root { --<group>-<name>: <value>; }` block. Preserve user-added CSS via the existing managed-block markers (`/* @design-engine:managed */ ... /* @end:managed */`). The `existing` option lets the caller pass current file contents for surgical replacement.
+
+**`readTokensFromCss`:**
+- Regex-extract `--<name>: <value>` pairs from `:root`, `.dark`, `@theme { … }`, `@theme inline { … }` blocks.
+- For each pair, detect type from value:
+  - `#hex`, `oklch(...)`, `oklab(...)`, `hsl(...)`, `hsla(...)`, `rgb(...)`, `rgba(...)`, named colors → `color`
+  - Numeric + `px`/`rem`/`em`/`%` → `dimension` (further refined below)
+  - String value with quotes (`'Inter'`) or comma-separated font list → `fontFamily`
+  - Number-only value (no unit) → could be line-height (`typography`) or duration (`motion`); use name heuristic
+- Group by name-prefix where prefix is unambiguous:
+  - `--radius` or `--radius-*` → `radius` group; `--radius` itself → `radius.default`, others → `radius.<suffix>`
+  - `--font-*` → `font` group; `--font-sans` → `font.sans`, etc.
+  - `--shadow-*` → `shadow` group
+  - `--spacing-*` → `spacing` group
+  - `--duration-*` → `motion.duration.*`
+- All other dimension/numeric tokens that don't match a prefix and aren't colors → fall back to a generic `dimension` group keyed by full var name.
+- All color-typed tokens that don't match a prefix → `color` group keyed by full var name (`--brand` → `color.brand`, `--background` → `color.background`).
+
+**`writeTokensToCss`:**
+- Walk tokens.json groups; emit `--<flat-name>: <$value>;` lines inside the managed block.
+- Reconstruct flat names by reversing the grouping:
+  - `color.<name>` → `--<name>` (no prefix)
+  - `radius.default` → `--radius`; `radius.<other>` → `--radius-<other>`
+  - `font.<name>` → `--font-<name>`
+  - `shadow.<name>` → `--shadow-<name>`
+  - `spacing.<name>` → `--spacing-<name>`
+- Preserve user-added CSS via existing managed-block markers in `theme-io.ts` (`/* @design-engine:managed */ … /* @end:managed */` or whatever the existing convention is — read existing implementation first).
+- `options.existing` accepts arbitrary CSS contents (for derive mode targeting `globals.css`, not just adapter `theme.css`). Surgical-replace within the managed block; preserve everything outside.
 
 **Step 4: Run test, verify it passes**
 
 ```bash
-cd tests && node --test theme-io.tokens.test.ts
+cd tests && npm test -- ./theme-io.tokens.test.ts
 ```
-Expected: PASS, 3 tests.
+Expected: PASS, 6 tests.
 
 **Step 5: Mirror changes to other adapters**
 
@@ -818,7 +911,7 @@ Random unknown section.
 **Step 3: Run tests, verify they fail**
 
 ```bash
-cd tests && node --test design-md-parse.test.ts
+cd tests && npm test -- ./design-md-parse.test.ts
 ```
 Expected: FAIL — `parseDesignMd` doesn't exist.
 
@@ -836,7 +929,7 @@ Tolerance: missing sections → empty groups; unknown sections → warning only;
 **Step 5: Run tests, verify they pass**
 
 ```bash
-cd tests && node --test design-md-parse.test.ts
+cd tests && npm test -- ./design-md-parse.test.ts
 ```
 Expected: PASS, 5 tests.
 
@@ -850,6 +943,113 @@ git commit -m "feat(parse): DESIGN.md → tokens.json one-way derivation parser"
 **Step 7: Cross-model review gate**
 
 Run `/cross-model-review-now impl` (or invoke codex directly) on the parser before downstream commands consume it. Address any feedback before Task 5.5.
+
+---
+
+### Task 5.2b: tokens.json → DESIGN.md skeleton emitter
+
+**Files:**
+- Create: `adapters/react-shadcn/templates/design-md-emit.ts`
+- Test: `tests/design-md-emit.test.ts`
+
+This task fills a gap codex flagged: Tasks 5.5 (derive mode), 5.6 (lazy-migrate old skins), and 5.7 (`sync --reverse`) all need a tokens-to-DESIGN.md generator, but no task built it. Lands here, tested, before consumers.
+
+**Step 1: Write the failing test**
+
+```typescript
+// tests/design-md-emit.test.ts
+import { test } from 'node:test';
+import * as assert from 'node:assert';
+import { emitDesignMdSkeleton } from '../adapters/react-shadcn/templates/design-md-emit';
+
+test('emitDesignMdSkeleton produces 9 sections with H1 stub', () => {
+  const tokens = {
+    color: { $type: 'color', brand: { $value: '#abc123' }, background: { $value: '#fff' } },
+    font: { $type: 'fontFamily', sans: { $value: ['Inter', 'system-ui'] } },
+  };
+  const md = emitDesignMdSkeleton(tokens, { name: 'Acme Corp' });
+  assert.match(md, /^# Design System Inspired by Acme Corp/m);
+  assert.match(md, /^## 1\. Visual Theme & Atmosphere/m);
+  assert.match(md, /^## 2\. Color Palette & Roles/m);
+  assert.match(md, /^## 3\. Typography Rules/m);
+  assert.match(md, /^## 4\. Component Stylings/m);
+  assert.match(md, /^## 5\. Layout Principles/m);
+  assert.match(md, /^## 6\. Depth & Elevation/m);
+  assert.match(md, /^## 7\. Do's and Don'ts/m);
+  assert.match(md, /^## 8\. Responsive Behavior/m);
+  assert.match(md, /^## 9\. Agent Prompt Guide/m);
+});
+
+test('emitDesignMdSkeleton fills derivable sections, stubs others', () => {
+  const tokens = {
+    color: { $type: 'color', brand: { $value: '#ff385c' } },
+    font: { $type: 'fontFamily', sans: { $value: ['Inter'] } },
+  };
+  const md = emitDesignMdSkeleton(tokens, { name: 'Test' });
+  assert.match(md, /#ff385c/);                              // color value present
+  assert.match(md, /Inter/);                                // font name present
+  assert.match(md, /<!-- TODO: describe visual atmosphere/); // section 1 TODO
+  assert.match(md, /<!-- TODO:.*[Dd]o's and [Dd]on'ts/);    // section 7 TODO
+});
+
+test('emitDesignMdSkeleton handles empty tokens gracefully', () => {
+  const md = emitDesignMdSkeleton({}, { name: 'Empty' });
+  assert.match(md, /^# Design System Inspired by Empty/m);
+  // all 9 sections present, all stubbed
+  assert.equal((md.match(/<!-- TODO:/g) || []).length >= 5, true);
+});
+
+test('emitDesignMdSkeleton emits diff-friendly suggestion mode for sync --reverse', () => {
+  const tokens = { color: { $type: 'color', brand: { $value: '#new' } } };
+  const md = emitDesignMdSkeleton(tokens, { name: 'Test', mode: 'suggestion' });
+  // suggestion mode emits ONLY the derivable sections (2/3/5/6) for diff review
+  assert.match(md, /^## 2\. Color Palette & Roles/m);
+  assert.doesNotMatch(md, /^## 1\. Visual Theme/m);  // narrative section omitted
+});
+```
+
+**Step 2: Run test, verify it fails**
+
+```bash
+cd tests && npm test -- ./design-md-emit.test.ts
+```
+Expected: FAIL.
+
+**Step 3: Implement `emitDesignMdSkeleton`**
+
+```typescript
+type EmitOptions = {
+  name: string;                    // for "# Design System Inspired by <name>"
+  category?: string;               // for "> Category: <category>" line
+  mode?: 'full' | 'suggestion';   // 'full' = all 9 sections (with stubs); 'suggestion' = only derivable sections
+};
+
+export function emitDesignMdSkeleton(tokens: any, options: EmitOptions): string;
+```
+
+Behavior:
+- **Section 1 (Visual Theme):** TODO stub (not derivable from tokens).
+- **Section 2 (Color Palette):** walk `tokens.color.*`; emit each as `- **<Name>** (\`<value>\`)`. Group into Primary/Surface/Neutrals/Semantic by name heuristic if recognizable, else single ungrouped list.
+- **Section 3 (Typography):** Font Family from `tokens.font.*`; Hierarchy table from `tokens.typography.*` if present, else stub.
+- **Section 4 (Components):** TODO stub.
+- **Section 5 (Layout):** Spacing scale from `tokens.spacing.*` if present, else stub.
+- **Section 6 (Depth):** Radius scale from `tokens.radius.*`; shadow scale from `tokens.shadow.*`; else stubs.
+- **Sections 7, 8, 9:** TODO stubs.
+- In `mode: 'suggestion'`, omit non-derivable sections (1, 4, 7, 8, 9) entirely; output only Sections 2/3/5/6 for diff review against existing DESIGN.md.
+
+**Step 4: Run test, verify it passes**
+
+```bash
+cd tests && npm test -- ./design-md-emit.test.ts
+```
+Expected: PASS, 4 tests.
+
+**Step 5: Commit**
+
+```bash
+git add adapters/react-shadcn/templates/design-md-emit.ts tests/design-md-emit.test.ts
+git commit -m "feat(emit): tokens.json → DESIGN.md skeleton (full + suggestion modes)"
+```
 
 ---
 
@@ -918,7 +1118,7 @@ test('parseThemeCss tolerates unparseable values — leaves TODO stub', () => {
 **Step 3: Run tests, verify they fail**
 
 ```bash
-cd tests && node --test theme-css-parse.test.ts
+cd tests && npm test -- ./theme-css-parse.test.ts
 ```
 Expected: FAIL.
 
@@ -934,7 +1134,7 @@ Strategy:
 **Step 5: Run tests, verify they pass**
 
 ```bash
-cd tests && node --test theme-css-parse.test.ts
+cd tests && npm test -- ./theme-css-parse.test.ts
 ```
 Expected: PASS, 5 tests.
 
@@ -988,7 +1188,7 @@ test('upgradeConfig preserves all existing fields', () => {
 **Step 2: Run tests, verify they fail**
 
 ```bash
-cd tests && node --test upgrade-config.test.ts
+cd tests && npm test -- ./upgrade-config.test.ts
 ```
 Expected: FAIL.
 
@@ -1009,7 +1209,7 @@ export function upgradeConfig(old: any, additions: { themeFile: string }): any {
 **Step 4: Run tests, verify they pass**
 
 ```bash
-cd tests && node --test upgrade-config.test.ts
+cd tests && npm test -- ./upgrade-config.test.ts
 ```
 Expected: PASS, 3 tests.
 
@@ -1045,7 +1245,7 @@ Before scaffolding, check for an existing theme. Detection priority:
 5. **SvelteKit**: `svelte.config.{js,ts}` exists → derive mode, themeFile = `src/app.css` or `src/routes/+layout.svelte`-referenced CSS.
 6. Fallback: scratch mode (with confirmation prompt: "No existing theme detected. Initialize from scratch?").
 
-If derive mode: invoke `theme-css-parse.ts:parseThemeCss(<themeFile>)` to extract tokens, then `design-md-parse.ts` reverse helper to template-fill DESIGN.md skeleton (Sections 2/3/5/6 derived from extracted tokens; Sections 1/4/7/8/9 stubbed with TODO markers).
+If derive mode: invoke `theme-css-parse.ts:parseThemeCss(<themeFile>)` to extract tokens, then `design-md-emit.ts:emitDesignMdSkeleton(tokens, { name, mode: 'full' })` to template-fill DESIGN.md skeleton (Sections 2/3/5/6 derived from extracted tokens; Sections 1/4/7/8/9 stubbed with TODO markers).
 
 If scratch mode: prompt user to pick from `data/design-systems/<slug>/DESIGN.md`. Stamp the chosen DESIGN.md, derive tokens.json from it, scaffold theme.css from tokens.json into the adapter's default location.
 ```
@@ -1072,16 +1272,162 @@ The existing `/design-init` writes adapter scaffold files. After scaffolding, ad
 - `<root>/tokens.json` — derived from DESIGN.md
 - `<root>/register.md` — empty 5-section template (per design-doc Section 4.3)
 
-**Step 4: Manual smoke test against fixtures**
-
-Create a temporary test directory with a `tests/fixtures/shadcn-globals.css`-like setup. Run through the command logic mentally; verify scratch mode and derive mode both produce correct outputs.
-
-**Step 5: Commit**
+**Step 4: Commit the documentation changes**
 
 ```bash
 git add commands/design-init.md
-git commit -m "feat(design-init): add scratch/derive mode detection + schemaVersion upgrade path"
+git commit -m "feat(design-init): document scratch/derive mode detection + schemaVersion upgrade path"
 ```
+
+Smoke testing happens in Task 5.5b (next), which is an integration test that exercises the upgrade path against fixtures.
+
+---
+
+### Task 5.5b: Integration test — `/design-init` upgrade path
+
+**Files:**
+- Create: `tests/design-init-upgrade.test.ts`
+- Create: `tests/fixtures/old-project/.design-rules/config.json`
+- Create: `tests/fixtures/old-project/src/app/globals.css`
+
+This task addresses codex's finding #2: backward-compat needs an actual integration test, not just unit tests on `detectOldFormat`/`upgradeConfig`.
+
+**Step 1: Build the old-project fixture**
+
+```bash
+mkdir -p tests/fixtures/old-project/.design-rules
+mkdir -p tests/fixtures/old-project/src/app
+```
+
+`tests/fixtures/old-project/.design-rules/config.json` (no `schemaVersion`, pre-foundation format):
+
+```json
+{
+  "skin": "stripe",
+  "adapter": "react-shadcn",
+  "recipe": "fintech",
+  "settingsPage": true
+}
+```
+
+`tests/fixtures/old-project/src/app/globals.css`: copy of `tests/fixtures/theme-standard.css` with one extra user-customized variable to test customization preservation:
+
+```css
+:root {
+  --brand: #533afd;       /* matches stripe's bundled value */
+  --primary: #061b31;     /* matches stripe */
+  --background: #ffffff;
+  --user-custom: 99px;    /* user-added; should survive */
+  …
+}
+```
+
+**Step 2: Write the failing integration test**
+
+```typescript
+// tests/design-init-upgrade.test.ts
+import { test } from 'node:test';
+import * as assert from 'node:assert';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { runDesignInitUpgrade } from '../adapters/react-shadcn/templates/upgrade-config';
+
+const FIXTURE = path.resolve('tests/fixtures/old-project');
+
+test('upgrade trigger produces DESIGN.md, tokens.json, register.md, and bumps schemaVersion', async (t) => {
+  // Snapshot fixture state into a tmp directory so we don't mutate the fixture
+  const tmpDir = fs.mkdtempSync('/tmp/upgrade-test-');
+  fs.cpSync(FIXTURE, tmpDir, { recursive: true });
+
+  await runDesignInitUpgrade(tmpDir);
+
+  // Assertions:
+  assert.ok(fs.existsSync(path.join(tmpDir, 'DESIGN.md')), 'DESIGN.md created at root');
+  assert.ok(fs.existsSync(path.join(tmpDir, 'tokens.json')), 'tokens.json created at root');
+  assert.ok(fs.existsSync(path.join(tmpDir, 'register.md')), 'register.md created at root');
+
+  const config = JSON.parse(fs.readFileSync(path.join(tmpDir, '.design-rules/config.json'), 'utf8'));
+  assert.equal(config.schemaVersion, 2);
+  assert.match(config.themeFile, /globals\.css$/);
+
+  // tokens.json should have stripe's brand color (bundled match)
+  const tokens = JSON.parse(fs.readFileSync(path.join(tmpDir, 'tokens.json'), 'utf8'));
+  assert.equal(tokens.color.brand?.$value, '#533afd');
+
+  // register.md should be empty 5-section template
+  const register = fs.readFileSync(path.join(tmpDir, 'register.md'), 'utf8');
+  assert.match(register, /## 1\. Color Stance/);
+  assert.match(register, /## 5\. Material Posture/);
+
+  // user-added CSS should be preserved in globals.css
+  const globals = fs.readFileSync(path.join(tmpDir, 'src/app/globals.css'), 'utf8');
+  assert.match(globals, /--user-custom:\s*99px/);
+});
+
+test('upgrade detects user-customized values diverging from bundled skin', async () => {
+  const tmpDir = fs.mkdtempSync('/tmp/upgrade-test-');
+  fs.cpSync(FIXTURE, tmpDir, { recursive: true });
+
+  // Override globals.css with a customized brand color (diverges from bundled #533afd)
+  const customGlobals = fs.readFileSync(path.join(tmpDir, 'src/app/globals.css'), 'utf8')
+    .replace('--brand: #533afd', '--brand: #ff0000');
+  fs.writeFileSync(path.join(tmpDir, 'src/app/globals.css'), customGlobals);
+
+  const result = await runDesignInitUpgrade(tmpDir);
+
+  // tokens.json should preserve the user's customized value, not the bundled one
+  const tokens = JSON.parse(fs.readFileSync(path.join(tmpDir, 'tokens.json'), 'utf8'));
+  assert.equal(tokens.color.brand?.$value, '#ff0000');
+
+  // Result should include a warning about divergence
+  assert.ok(result.warnings?.some((w: string) => w.includes('customized') || w.includes('diverge')));
+});
+```
+
+**Step 3: Run test, verify it fails**
+
+```bash
+cd tests && npm test -- ./design-init-upgrade.test.ts
+```
+Expected: FAIL — `runDesignInitUpgrade` doesn't exist yet.
+
+**Step 4: Implement `runDesignInitUpgrade`**
+
+In `adapters/react-shadcn/templates/upgrade-config.ts`, add:
+
+```typescript
+export async function runDesignInitUpgrade(projectRoot: string): Promise<{ warnings?: string[] }> {
+  // 1. Read .design-rules/config.json; verify detectOldFormat()
+  // 2. Resolve active skin via 4-source lookup → DESIGN.md content
+  // 3. Stamp <root>/DESIGN.md
+  // 4. Run parseDesignMd(DESIGN.md) → derivedTokens
+  // 5. Auto-detect themeFile (shadcn → components.json says, else fall back)
+  // 6. Run parseThemeCss(themeFile) → existingTokens
+  // 7. Diff derivedTokens vs existingTokens; if divergent, prefer existingTokens, emit warning
+  // 8. Write <root>/tokens.json
+  // 9. Stamp <root>/register.md (empty template)
+  // 10. upgradeConfig(config, { themeFile }); write back to .design-rules/config.json
+  // 11. Return { warnings }
+}
+```
+
+**Step 5: Run test, verify it passes**
+
+```bash
+cd tests && npm test -- ./design-init-upgrade.test.ts
+```
+Expected: PASS, 2 tests.
+
+**Step 6: Commit**
+
+```bash
+git add tests/design-init-upgrade.test.ts tests/fixtures/old-project/ adapters/react-shadcn/templates/upgrade-config.ts
+git commit -m "feat(upgrade): integration test + runDesignInitUpgrade implementation"
+```
+
+**Step 7: Cross-model review gate**
+
+Run codex review on the upgrade-path integration test + implementation. This is high-risk for compounding errors in user projects. Address feedback before Task 5.6.
 
 ---
 
@@ -1218,44 +1564,112 @@ git commit -m "feat(review-lint): enforce against tokens.json + DESIGN.md + craf
 **Files:**
 - Modify: `adapters/react-shadcn/templates/__design-page.ts`
 - Modify: `adapters/react-shadcn/templates/vite-plugin-design-engine.ts`
-- Modify: `adapters/react-shadcn/manifest.json` (if needed)
-- Test: `tests/__design-page.tokens.test.ts` (new, integration-style)
+- Test: `tests/vite-plugin-tokens-api.test.ts` (new, unit-tests the API handler logic)
 
-**Step 1: Identify the current write path**
+**Step 1: Read existing files to understand current architecture**
 
-Read existing `__design-page.ts` and `vite-plugin-design-engine.ts`. Locate where the API endpoint at `/__design/api/tokens` writes to theme.css via theme-io.
+Read existing `__design-page.ts` (UI logic) and `vite-plugin-design-engine.ts` (server middleware). Note where the `/__design/api/tokens` endpoint currently reads/writes theme.css via theme-io. Note the autosave/debounce pattern in `__design-page.ts`.
 
-**Step 2: Update the API endpoint to operate on `<root>/tokens.json`**
+**Step 2: Write the failing tests for the API handler**
 
-The Vite plugin's `/__design/api/tokens`:
-- GET: read `<root>/tokens.json`, return as JSON
-- POST: validate W3C shape, write to `<root>/tokens.json`, then regenerate theme.css via `writeTokensToCss(tokens, { existing: read(themeFile) })`, write back to themeFile
+```typescript
+// tests/vite-plugin-tokens-api.test.ts
+import { test } from 'node:test';
+import * as assert from 'node:assert';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { handleGetTokens, handlePostTokens } from '../adapters/react-shadcn/templates/vite-plugin-design-engine';
 
-**Step 3: Update the settings page UI to read/write the W3C shape**
+test('GET /api/tokens returns tokens.json contents as JSON', async () => {
+  const tmpDir = fs.mkdtempSync('/tmp/tokens-api-');
+  fs.writeFileSync(path.join(tmpDir, 'tokens.json'), JSON.stringify({
+    color: { $type: 'color', brand: { $value: '#abc123' } }
+  }));
+  const result = await handleGetTokens({ projectRoot: tmpDir });
+  assert.equal(result.color.brand.$value, '#abc123');
+});
 
-`__design-page.ts` currently autosaves CSS variable mutations. Update to:
-- Fetch tokens via GET `/__design/api/tokens`
-- Autosave changes back via POST `/__design/api/tokens` with the full W3C tokens object (debounced)
-- Render the form fields driven by tokens.json structure
+test('POST /api/tokens validates W3C shape and rejects malformed', async () => {
+  const tmpDir = fs.mkdtempSync('/tmp/tokens-api-');
+  fs.writeFileSync(path.join(tmpDir, 'tokens.json'), '{}');
+  fs.writeFileSync(path.join(tmpDir, 'src/app/globals.css'), ':root { --brand: #old; }');
+  fs.writeFileSync(path.join(tmpDir, '.design-rules/config.json'),
+    JSON.stringify({ schemaVersion: 2, themeFile: 'src/app/globals.css' }));
 
-**Step 4: Manual smoke test**
+  // malformed: missing $value
+  const malformed = { color: { brand: { value: '#wrong' } } };
+  await assert.rejects(() => handlePostTokens({ projectRoot: tmpDir, body: malformed }));
+});
 
-(Skipped in this implementation pass — actual smoke test happens post-merge per design-doc Section 8.)
+test('POST /api/tokens writes tokens.json and regenerates themeFile', async () => {
+  const tmpDir = fs.mkdtempSync('/tmp/tokens-api-');
+  fs.mkdirSync(path.join(tmpDir, '.design-rules'), { recursive: true });
+  fs.mkdirSync(path.join(tmpDir, 'src/app'), { recursive: true });
+  fs.writeFileSync(path.join(tmpDir, 'tokens.json'), '{}');
+  fs.writeFileSync(path.join(tmpDir, 'src/app/globals.css'), ':root { --brand: #old; --custom: 1px; }');
+  fs.writeFileSync(path.join(tmpDir, '.design-rules/config.json'),
+    JSON.stringify({ schemaVersion: 2, themeFile: 'src/app/globals.css' }));
 
-**Step 5: Commit**
+  const newTokens = { color: { $type: 'color', brand: { $value: '#new' } } };
+  await handlePostTokens({ projectRoot: tmpDir, body: newTokens });
 
-```bash
-git add adapters/react-shadcn/templates/__design-page.ts adapters/react-shadcn/templates/vite-plugin-design-engine.ts
-git commit -m "refactor(react-shadcn): settings page reads/writes tokens.json (canonical) + regenerates theme.css"
+  const written = JSON.parse(fs.readFileSync(path.join(tmpDir, 'tokens.json'), 'utf8'));
+  assert.equal(written.color.brand.$value, '#new');
+
+  const css = fs.readFileSync(path.join(tmpDir, 'src/app/globals.css'), 'utf8');
+  assert.match(css, /--brand:\s*#new/);
+  assert.match(css, /--custom:\s*1px/);  // user-added preserved
+});
 ```
 
-**Step 6: Cross-model review gate**
+**Step 3: Run tests, verify they fail**
+
+```bash
+cd tests && npm test -- ./vite-plugin-tokens-api.test.ts
+```
+Expected: FAIL.
+
+**Step 4: Implement `handleGetTokens` and `handlePostTokens`**
+
+Refactor `vite-plugin-design-engine.ts`:
+- Extract `handleGetTokens({ projectRoot })` and `handlePostTokens({ projectRoot, body })` as exported pure functions (testable independent of the Vite middleware shell).
+- The Vite middleware is a thin wrapper that adapts HTTP request/response to these functions.
+- Behavior per design-doc Section 6.3:
+  - GET: read `<projectRoot>/tokens.json`; return as JSON.
+  - POST: validate W3C shape (every leaf has `$value`); write to `<projectRoot>/tokens.json`; read `<projectRoot>/<config.themeFile>`; run `writeTokensToCss(tokens, { existing })`; write back to themeFile.
+
+**Step 5: Run tests, verify they pass**
+
+```bash
+cd tests && npm test -- ./vite-plugin-tokens-api.test.ts
+```
+Expected: PASS, 3 tests.
+
+**Step 6: Update `__design-page.ts` UI**
+
+Update the form to:
+- Fetch tokens via GET `/__design/api/tokens` on load.
+- Render form fields driven by tokens.json group structure (color section, font section, radius section, etc.).
+- Autosave changes (debounced 500ms) via POST `/__design/api/tokens` with the full W3C tokens object.
+- Show a warning if tokens.json shape is invalid on POST.
+
+(UI logic is hard to unit-test without a DOM; acceptance is via manual smoke test post-merge per design-doc Section 8.)
+
+**Step 7: Commit**
+
+```bash
+git add adapters/react-shadcn/templates/__design-page.ts adapters/react-shadcn/templates/vite-plugin-design-engine.ts tests/vite-plugin-tokens-api.test.ts
+git commit -m "refactor(react-shadcn): settings page reads/writes tokens.json (canonical) + regenerates themeFile"
+```
+
+**Step 8: Cross-model review gate**
 
 Run codex review on the rewired settings page before fanning out to other adapters. Codex should evaluate:
 - Round-trip correctness (settings page edit → tokens.json → theme.css → page reload reflects edit)
 - Managed-block discipline (user-added CSS preserved)
 - W3C shape validation on POST
 - Concurrency (debounced writes don't race)
+- Configurable themeFile path correctly honored
 
 Address feedback before Task 5.10.
 
@@ -1267,13 +1681,32 @@ Address feedback before Task 5.10.
 - Modify: `adapters/astro/templates/__design-page.ts`
 - Modify: `adapters/astro/templates/astro-integration-design-engine.ts`
 
-**Step 1: Apply same pattern as react-shadcn pilot**
+Per current MANIFEST.md, `astro/templates/__design-page.ts` is a **byte-identical copy** of `react-shadcn/templates/__design-page.ts`. The Astro integration file (`astro-integration-design-engine.ts`) is the framework-specific server piece and differs.
 
-Astro's integration uses `astro:server:setup` to register middleware. Update the `/__design/api/tokens` endpoint to operate on tokens.json (analog of Task 5.9 step 2).
+**Step 1: Copy `__design-page.ts` byte-identically from react-shadcn**
 
-**Step 2: Update settings page UI** (analog of Task 5.9 step 3, byte-identical to react-shadcn per current MANIFEST)
+```bash
+cp adapters/react-shadcn/templates/__design-page.ts adapters/astro/templates/__design-page.ts
+```
 
-**Step 3: Commit**
+**Step 2: Verify byte-identical**
+
+```bash
+diff adapters/react-shadcn/templates/__design-page.ts adapters/astro/templates/__design-page.ts
+```
+Expected: empty diff.
+
+**Step 3: Update `astro-integration-design-engine.ts`**
+
+Astro's integration uses `astro:server:setup` to register Vite middleware. Update the `/__design/api/tokens` endpoint to delegate to `handleGetTokens` and `handlePostTokens` from Task 5.9 (import from `react-shadcn/templates/vite-plugin-design-engine.ts`, OR copy the handlers into a shared location — pick whichever respects the byte-identical convention).
+
+**Decision point:** the handlers are server logic, currently lives in react-shadcn's vite plugin. If they should be shared across adapters, extract them into a shared module (e.g., `adapters/_shared/tokens-api.ts`) and import from each adapter. If they should stay byte-identical-copied across adapters, copy `vite-plugin-design-engine.ts` ↔ `astro-integration-design-engine.ts` handler functions verbatim. Codex should weigh in at the gate after 5.9 on which is right.
+
+**Step 4: Run integration test against the astro setup**
+
+(Skipped in this pass; depends on Astro dev server harness.)
+
+**Step 5: Commit**
 
 ```bash
 git add adapters/astro/templates/
@@ -1288,15 +1721,26 @@ git commit -m "refactor(astro): settings page reads/writes tokens.json (parity w
 - Modify: `adapters/sveltekit/templates/api-tokens-server.ts`
 - Modify: `adapters/sveltekit/templates/settings-page.svelte`
 
+SvelteKit diverges from react-shadcn/astro: its UI is a Svelte 5 component (not vanilla TS via `__design-page.ts`), and its API endpoint is a `+server.ts` file (not a Vite middleware).
+
 **Step 1: Update `/__design/api/tokens` `+server.ts` content**
 
-Apply same pattern as Task 5.9 step 2.
+Replace the existing handler logic to delegate to `handleGetTokens` / `handlePostTokens` (shared from 5.9 if extracted, else copied verbatim).
 
 **Step 2: Update Svelte 5 runes UI**
 
-Update `settings-page.svelte` to fetch/post the W3C tokens shape. (Different from Tasks 5.9/5.10 because SvelteKit uses Svelte components, not vanilla TS.)
+Update `settings-page.svelte` to:
+- Fetch tokens via GET on mount (`$effect.pre` or load function)
+- Bind form fields to a `$state(tokens)` object reflecting the W3C shape
+- Autosave on debounced change via POST
 
-**Step 3: Commit**
+The Svelte UI is a port of the same logic as `__design-page.ts`, just expressed in Svelte runes. Functional parity with react-shadcn's behavior — same group-driven form, same debounce interval, same error states.
+
+**Step 3: Verify functional parity**
+
+Manually walk through the form fields and confirm they cover the same tokens.json groups as react-shadcn's UI. Document any divergence.
+
+**Step 4: Commit**
 
 ```bash
 git add adapters/sveltekit/templates/
@@ -1427,21 +1871,37 @@ git commit -m "chore: remove old skin JSON + per-token JSON files (subsumed by d
 **Step 1: Run all tests**
 
 ```bash
-cd tests && npm install --no-save && node --test
+cd tests && npm install --no-save && npm test
 ```
 Expected: all pass.
 
-**Step 2: Manual fixture smoke tests**
+**Step 2: Verify fixture coverage**
 
-For each test fixture (airbnb, stripe, linear-app, kami DESIGN.md; shadcn-globals.css, tailwind-v4-theme.css, astro-theme.css, svelte-theme.css):
+The integration test added in Task 5.5b already covers the upgrade-path end-to-end against `tests/fixtures/old-project/`. Confirm it passes:
 
-- `parseDesignMd(fixture)` produces non-empty tokens.json
-- `parseThemeCss(fixture)` produces non-empty tokens.json
-- `writeTokensToCss(parseDesignMd(fixture))` produces valid CSS
+```bash
+cd tests && npm test -- ./design-init-upgrade.test.ts
+```
+Expected: PASS, 2 tests.
 
-**Step 3: Verify upgrade path against a fixture-mocked old project**
+**Step 3: Spot-check parser fixtures**
 
-Create a temp dir with old-format `.design-rules/config.json` (no `schemaVersion`, just `skin: stripe, adapter: react-shadcn`) and an existing `theme.css`. Mentally trace through `/design-init` → upgrade trigger → DESIGN.md/tokens.json/register.md stamped, schemaVersion=2, themeFile set.
+For each test fixture committed in earlier tasks (airbnb, stripe, linear-app, kami DESIGN.md; shadcn-globals.css, tailwind-v4-theme.css, astro-theme.css, svelte-theme.css):
+
+```bash
+cd tests && npm test
+```
+
+Verify these test files all PASS in the full run:
+- `theme-io.tokens.test.ts` (Task 5.1)
+- `design-md-parse.test.ts` (Task 5.2)
+- `design-md-emit.test.ts` (Task 5.2b)
+- `theme-css-parse.test.ts` (Task 5.3)
+- `upgrade-config.test.ts` (Task 5.4)
+- `design-init-upgrade.test.ts` (Task 5.5b)
+- `vite-plugin-tokens-api.test.ts` (Task 5.9)
+
+Plus existing test files (theme-io.parse, theme-io.write, theme-io.fonts, google-fonts-catalog.parse, google-fonts-catalog.fetch).
 
 **Step 4: Bump version in `.claude-plugin/plugin.json`**
 
@@ -1485,7 +1945,7 @@ Plan: `docs/plans/2026-05-06-foundation-od-schema-plan.md`
 Triage: `docs/triage-69-rules.md`
 
 ## Test plan
-- [ ] All `cd tests && node --test` tests pass
+- [ ] All `cd tests && npm test` tests pass
 - [ ] Manual smoke against bundled fixtures in `tests/fixtures/`
 - [ ] Manual upgrade-path smoke against fixture-mocked old project
 - [ ] Plugin reinstall + smoke test in `dc-v1-onboarding` (post-merge, per design-doc Section 8)
