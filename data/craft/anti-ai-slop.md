@@ -4,6 +4,15 @@
 
 ## design-engine principles
 
+### Single-accent restraint (from rule 1)
+
+Spreading the accent color across multiple components is a default LLM
+move — every CTA, every active tab, every icon background reaching for
+the same brand hue. Restraint is the human signal: one accent reserved
+for the active or selected state, grayscale carrying the rest. If the
+accent appears in more than ~2 places per visible screen, you've
+slipped into template territory.
+
 ### Selection UI restraint (from rule 10)
 
 Don't reach for a dropdown when the option count is small. Two to four
