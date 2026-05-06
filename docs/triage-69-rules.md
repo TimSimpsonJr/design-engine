@@ -6,72 +6,72 @@
 
 | # | Title | Primary | Dest(s) | Notes |
 |---|---|---|---|---|
-| 1 | Color Philosophy |  |  |  |
-| 2 | Number/Currency Display Rules |  |  |  |
-| 3 | Text Hierarchy Rules |  |  |  |
-| 4 | Trend Indicator Rules |  |  |  |
-| 5 | Gauge/Progress Bar Rules |  |  |  |
-| 6 | Donut Chart Rules |  |  |  |
-| 7 | Icon Badge Rules |  |  |  |
-| 8 | Card Internal Structure |  |  |  |
-| 9 | List Item Rules |  |  |  |
-| 10 | Selection UI Rules (Toggle / Select) |  |  |  |
-| 11 | Briefing/Alert Card Rules |  |  |  |
-| 12 | Shadow System |  |  |  |
-| 13 | Page Layout Structure |  |  |  |
-| 14 | Four Section Types |  |  |  |
-| 15 | Card Internal Division Rules |  |  |  |
-| 16 | Title Margin Rules |  |  |  |
-| 17 | Chart Style Rules |  |  |  |
-| 18 | Prohibition Rules (Absolute Don'ts) |  |  |  |
-| 19 | New Page Creation Checklist |  |  |  |
-| 20 | Information Pyramid Structure |  |  |  |
-| 21 | Data Density Rules |  |  |  |
-| 22 | Number Formatting Detailed Rules |  |  |  |
-| 23 | Text Wrapping Rules |  |  |  |
-| 24 | Interaction Rules |  |  |  |
-| 25 | Icon Detail Rules |  |  |  |
-| 26 | Opacity Level Rules |  |  |  |
-| 27 | Layering Rules (z-index / Background Decoration) |  |  |  |
-| 28 | Scroll & Spacing Detail Rules |  |  |  |
-| 29 | Loading State (Skeleton) Rules |  |  |  |
-| 30 | Empty State & Error State Rules |  |  |  |
-| 31 | Negative/Decline Display Rules |  |  |  |
-| 32 | Large Numbers & Long Text Handling |  |  |  |
-| 33 | CJK Typography Notes |  |  |  |
-| 34 | Microcopy Tone Guide |  |  |  |
-| 35 | Toast / Feedback Rules |  |  |  |
-| 36 | Modal / Sheet Rules |  |  |  |
-| 37 | Viewport & Responsive Rules |  |  |  |
-| 38 | Chart Type Selection Guide |  |  |  |
-| 39 | Notification Severity (4 Levels) |  |  |  |
-| 40 | Design System Application Guide |  |  |  |
-| 41 | Accessibility Essentials |  |  |  |
-| 42 | Tab & Navigation Details |  |  |  |
-| 43 | Animation Details (Motion Choreography) |  |  |  |
-| 44 | Input & Form Rules (When Used Outside Cards) |  |  |  |
-| 45 | Dark Mode Guide |  |  |  |
-| 46 | Button Design Rules |  |  |  |
-| 47 | Badge & Tag Design Rules |  |  |  |
-| 48 | Divider & Border Detail Rules |  |  |  |
-| 49 | UX Writing Details (Conversational Tone) |  |  |  |
-| 50 | Dark Pattern Prevention Rules |  |  |  |
-| 51 | Graphic Resource Usage Principles |  |  |  |
-| 52 | Design Reference Width & Resolution |  |  |  |
-| 53 | Component Composition & Screen Structure Principles |  |  |  |
-| 54 | Segment Control Rules |  |  |  |
-| 55 | Drawer (Side Panel) Rules |  |  |  |
-| 56 | Dialog Detail Rules (ConfirmModal) |  |  |  |
-| 57 | Custom Icon Creation Rules |  |  |  |
-| 58 | TypeScript Token Usage Rules |  |  |  |
-| 59 | Animation Wrapper Rules (Framer Motion) |  |  |  |
-| 60 | Formatting Utility Rules |  |  |  |
-| 61 | Visual Rhythm — Breaking Monotony |  |  |  |
-| 62 | KPI Card Variation — The 4-Card Rule |  |  |  |
-| 63 | Section Composition Recipes |  |  |  |
-| 64 | Element Diversity Within Cards |  |  |  |
-| 65 | Color Accent Distribution |  |  |  |
-| 66 | Card Size Variation |  |  |  |
-| 67 | Progressive Information Density |  |  |  |
-| 68 | Empty Page Prevention |  |  |  |
-| 69 | Chart + Context Pairing |  |  |  |
+| 1 | Color Philosophy | UNIV+TOK | craft/color.md, craft/anti-ai-slop.md, tokens.json | Universal "single accent + grayscale" principle goes to color.md and reinforces anti-ai-slop. Specific hex values (#2A2A2A, #3C3C3C, #6A6A6A, #7A7A7A, #9B9B9B, #FAFAFA, #C85A54, #6B9B7A, #F0E8FF, etc.) are stable defaults shipped in tokens.json. |
+| 2 | Number/Currency Display Rules | UI-DASH+TOK | skills/mobile-dashboard/SKILL.md, tokens.json | KPI hero/metric number-vs-unit 2:1 ratio is dashboard-specific. The number/unit size pairs (48/24, 36/18, 24/12, etc.) belong in tokens.json under a metric-scale token group. |
+| 3 | Text Hierarchy Rules | UNIV+TOK | craft/typography.md, tokens.json | Universal: multi-level type scale + label uppercase+tracking pattern → typography.md. The specific 5-level grayscale colors (already in rule 1) and the type-scale sizes (48/36/18/14/12/11/10) are token defaults. The Tailwind v4 implementation note (`text-[36px]` not `text-[var(...)]`) is a stack note for design-engine. |
+| 4 | Trend Indicator Rules | UI-DASH+TOK | skills/mobile-dashboard/SKILL.md, tokens.json | Trend arrow + colored % is dashboard idiom. Success/destructive trend colors (#6B9B7A, #D4183D) and strokeWidth=2.5 are token defaults. |
+| 5 | Gauge/Progress Bar Rules | UI-DASH+TOK | skills/mobile-dashboard/SKILL.md, tokens.json | Linear vs segmented gauge selection + h-4/h-6 + relationship to card padding is dashboard composition. The track color (#E8E6E1) and gauge dimensions are token defaults. |
+| 6 | Donut Chart Rules | UI-DASH+TOK | skills/mobile-dashboard/SKILL.md, tokens.json | Donut sizing, key-color highlight, opacity 0.3 unselected — dashboard-specific. Gray palette ladder (#D4D4D4 → #6B6B6B) is a token default. |
+| 7 | Icon Badge Rules | UI-DASH+TOK | skills/mobile-dashboard/SKILL.md, tokens.json | Size-by-context badge system is dashboard idiom. The 10% opacity rule (`bg-brand/10`) and badge dimensions (size-7/size-8/size-10) are token defaults. |
+| 8 | Card Internal Structure | UI-DASH | skills/mobile-dashboard/SKILL.md | Header → Content → Footer structure with icon badge + label + metric + trend is dashboard card anatomy. Divider colors already covered in tokens via rule 1. |
+| 9 | List Item Rules | UI-DASH+TOK | skills/mobile-dashboard/SKILL.md, tokens.json | Same-color dot+text status pattern is dashboard list idiom. Status semantic colors (#22C55E, #3B82F6, #F59E0B) are token defaults. Highlighted-row pattern is dashboard-specific. |
+| 10 | Selection UI Rules (Toggle / Select) | UNIV+UI-DASH | craft/anti-ai-slop.md, skills/mobile-dashboard/SKILL.md | Universal: "no dropdowns inside cards / use pill toggle for 2-4 options / dedicate page for 5+" is a craft principle that applies broadly → anti-ai-slop. The pill-toggle styling specifics (bg-brand active, etc.) are dashboard idiom. |
+| 11 | Briefing/Alert Card Rules | UI-DASH+TOK | skills/mobile-dashboard/SKILL.md, tokens.json | Horizontal carousel of 280px alert cards is dashboard pattern. Severity colors (#C85A54 urgent, #7A7A7A info) are token defaults. |
+| 12 | Shadow System | UNIV+TOK | craft/anti-ai-slop.md, tokens.json | Universal "subtle shadows, low opacity 4-12%" is anti-slop craft (rejects heavy shadows). The 5-level shadow ladder values are token defaults. |
+| 13 | Page Layout Structure | UI-DASH+TOK | skills/mobile-dashboard/SKILL.md, tokens.json | 430px max-width, space-y-6, pb-24 are dashboard page-frame specifics. Page bg #FAFAFA is a token default (also covered in rule 1). |
+| 14 | Four Section Types | UI-DASH | skills/mobile-dashboard/SKILL.md | A/B/C/D section taxonomy with mx-6/px-6 rules is the core dashboard composition vocabulary. Pure UI-DASH. |
+| 15 | Card Internal Division Rules | UI-DASH | skills/mobile-dashboard/SKILL.md | border-t between chart and stats grid + grid-cols-3/4 stats footer is dashboard card composition. |
+| 16 | Title Margin Rules | UI-DASH | skills/mobile-dashboard/SKILL.md | mb-4/mb-5/mb-6 by content type (list/table/chart) is dashboard card spacing. |
+| 17 | Chart Style Rules | UI-DASH+TOK | skills/mobile-dashboard/SKILL.md, tokens.json | Area/bar chart styling decisions — dashboard idiom. strokeWidth 2.5, gradient 15→0%, h-40/h-44 dimensions are token defaults for chart styling. |
+| 18 | Prohibition Rules (Absolute Don'ts) | UNIV+UI-DASH | craft/anti-ai-slop.md, skills/mobile-dashboard/SKILL.md | HYBRID — splits cleanly. Universal prohibitions ("no pure black", "no key-color background cards", "no strong shadows", "no ad-hoc components", "convey info through more than color") → anti-ai-slop. Dashboard-specific prohibitions ("no content outside cards", "no dividers between sections", "must use mx-6/px-6", "no rounded != rounded-2xl") → mobile-dashboard. |
+| 19 | New Page Creation Checklist | UI-DASH | skills/mobile-dashboard/SKILL.md | Step-by-step build guide referencing 4 section types and dashboard checks — pure dashboard workflow. |
+| 20 | Information Pyramid Structure | UNIV+UI-DASH | craft/typography.md, skills/mobile-dashboard/SKILL.md | Universal: hierarchy via decreasing font size (48 → 36 → 24 → 18 → 14) is a typography-craft principle. Dashboard-specific: "first screen = hero + KPI grid only" is dashboard composition. |
+| 21 | Data Density Rules | UI-DASH | skills/mobile-dashboard/SKILL.md | Max 4 items per card, "no CTAs/inputs in cards" — dashboard composition rule. |
+| 22 | Number Formatting Detailed Rules | UNIV-EXTRA | skills/design-engine/SKILL.md | Number formatting (decimals by data type, comma separators, date format) is universal but doesn't fit any of OD's 8 craft topics — lands in design-engine. |
+| 23 | Text Wrapping Rules | UNIV | craft/typography.md | Universal typography craft: whitespace-nowrap for numbers+units, truncate vs line-clamp-2 by text type, line-height by usage context. Applies to any UI. |
+| 24 | Interaction Rules | UNIV+UI-DASH | craft/animation-discipline.md, skills/mobile-dashboard/SKILL.md | Universal: transition-all duration-300, "no card hover effects", "no swipe except carousel", "no long-press menus" are interaction-discipline craft → animation-discipline.md. Dashboard-specific: which elements are clickable (donut segment, pill toggle) → mobile-dashboard. |
+| 25 | Icon Detail Rules | UNIV+TOK | craft/anti-ai-slop.md, tokens.json | Universal "smaller icons need thicker strokeWidth" is craft for icon legibility → anti-ai-slop (icon-discipline pattern). The strokeWidth ladder (1.5/2/2.2/2.5) and size-by-context table are token defaults. |
+| 26 | Opacity Level Rules | UNIV+TOK | craft/anti-ai-slop.md, tokens.json | Universal "opacity ladder by purpose" (decorative vs informational) is anti-slop craft. The 6 specific opacity values (0.06/0.10/0.15/0.3/0.4/1.0) are token defaults. |
+| 27 | Layering Rules (z-index / Background Decoration) | UI-DASH | skills/mobile-dashboard/SKILL.md | Hero card watermark + chart underlay layering — specifically the dashboard "hero card with decoration" pattern. |
+| 28 | Scroll & Spacing Detail Rules | UI-DASH | skills/mobile-dashboard/SKILL.md | h-8 / pb-24, fixed TopBar+BottomNav, "no parallax", carousel snap — dashboard mobile idiom. (The "no parallax" / "no scroll-linked animation" prohibition also overlaps animation-discipline but is already covered there in rule 43; keeping single dest to avoid dup.) |
+| 29 | Loading State (Skeleton) Rules | UNIV+TOK | craft/state-coverage.md, tokens.json | Universal craft: skeletons match final shape, 300ms delay/min, no spinner-in-card → state-coverage. Skeleton timing tokens (300ms, 1.5s pulse) are token defaults. |
+| 30 | Empty State & Error State Rules | UNIV | craft/state-coverage.md | Universal craft: empty-state structure (icon + message + suggested next action), zero-as-zero (not dash), error retry pattern, partial-data handling. |
+| 31 | Negative/Decline Display Rules | UNIV-EXTRA | skills/design-engine/SKILL.md | Number sign convention (- not parentheses) is universal data-display craft, no OD topic fits. |
+| 32 | Large Numbers & Long Text Handling | UNIV+UI-DASH | craft/typography.md, skills/mobile-dashboard/SKILL.md | Universal: text overflow strategy (truncate by element type, char limits) → typography. Dashboard-specific: large-number unit bumping ($18,700,000 → $18.7M, never shrink font) → mobile-dashboard since it's tied to the 2:1 metric pattern. |
+| 33 | CJK Typography Notes | UNIV | craft/typography.md | Universal typography craft for CJK scripts: word-break: keep-all, minimum readable sizes, Pretendard metric correction. Applies across UI types. |
+| 34 | Microcopy Tone Guide | UNIV-EXTRA | skills/design-engine/SKILL.md | UX writing voice doesn't fit any of OD's 8 topics → design-engine. |
+| 35 | Toast / Feedback Rules | UNIV+TOK | craft/state-coverage.md, tokens.json | Universal: toast position, timing (3s info / 5s with action), one-at-a-time policy → state-coverage (feedback states). Toast colors / dimensions are token defaults. |
+| 36 | Modal / Sheet Rules | UNIV-EXTRA | skills/design-engine/SKILL.md | Modal vs page decision criteria + bottom-sheet structure is universal layout craft, no OD topic — design-engine. |
+| 37 | Viewport & Responsive Rules | UI-DASH | skills/mobile-dashboard/SKILL.md | 430px mobile-fixed reference + safe-area handling is the explicit mobile-dashboard scope. |
+| 38 | Chart Type Selection Guide | UI-DASH | skills/mobile-dashboard/SKILL.md | "When to use which chart" is dashboard-specific (chart-heavy UI). The "no 3D / no dual-axis / no stacked / no radar" prohibitions overlap anti-slop but read more naturally as dashboard chart discipline; user can re-route to anti-ai-slop at gate if preferred. |
+| 39 | Notification Severity (4 Levels) | UI-DASH+TOK | skills/mobile-dashboard/SKILL.md, tokens.json | Inline-notification card pattern with 4-color severity is dashboard idiom. Severity color tokens are defaults. Inline vs toast decision tree → mobile-dashboard. |
+| 40 | Design System Application Guide | UI-DASH | skills/mobile-dashboard/SKILL.md | "Change brand color, keep grayscale + structure + section pattern" is meta-guidance specifically for applying THIS dashboard system to other domains — mobile-dashboard. |
+| 41 | Accessibility Essentials | UNIV | craft/accessibility-baseline.md | Universal a11y craft: 44x44 touch targets, WCAG AA contrast, "never color alone", aria-label for charts/numbers, prefers-reduced-motion. Already in OD scope; design-engine layer just confirms/extends. |
+| 42 | Tab & Navigation Details | UNIV-EXTRA+UI-DASH | skills/design-engine/SKILL.md, skills/mobile-dashboard/SKILL.md | Universal patterns ("re-tap active tab scrolls to top", page transition directions, back button semantics) → design-engine. Bottom-nav 5-tab specifics with notification badge → mobile-dashboard. |
+| 43 | Animation Details (Motion Choreography) | UNIV+TOK | craft/animation-discipline.md, tokens.json | Universal craft: KPI card stagger (0/50/100/150ms), reduced-motion handling, "no parallax / no card zoom / no infinite loops". Duration tokens (fast/normal/moderate = 100/200/300ms) are defaults. |
+| 44 | Input & Form Rules (When Used Outside Cards) | UNIV+UI-DASH | craft/form-validation.md, skills/mobile-dashboard/SKILL.md | Universal: 16px input minimum (iOS zoom prevention), validate-on-blur, CJK compositionend handling, label + error-message wiring → form-validation. Dashboard-specific: "no input fields inside cards, use separate page or sheet" → mobile-dashboard. |
+| 45 | Dark Mode Guide | UNIV+TOK | craft/color.md, tokens.json | Universal craft: card-brighter-than-bg principle, depth via brightness ladder, shadow→border swap in dark mode → color.md (extends accent/neutrals discussion). Full dark-mode token map (#121212/#1E1E1E/etc., brightened brand+status colors) → tokens.json. |
+| 46 | Button Design Rules | UNIV+TOK | craft/anti-ai-slop.md, tokens.json | Universal craft: 7-variant naming, "not all buttons are pills" (only xs is pill), "no scale-shrink animation, color change only", button-pair ordering (primary right) → anti-ai-slop. Sizes/heights/radii (32/36/40/52px, 10px/14px radius) and pressed-color values are token defaults. |
+| 47 | Badge & Tag Design Rules | UNIV+TOK | craft/anti-ai-slop.md, tokens.json | Universal craft: 3 badge types (status/label/pill), "badge always supplements another element, never alone" → anti-ai-slop. Badge dimensions are token defaults. |
+| 48 | Divider & Border Detail Rules | UNIV+UI-DASH | craft/anti-ai-slop.md, skills/mobile-dashboard/SKILL.md | Universal: "separate cards with shadow not border, no vertical dividers" → anti-ai-slop. Dashboard-specific: divider only between chart and stats inside cards → mobile-dashboard (overlaps rule 15). |
+| 49 | UX Writing Details (Conversational Tone) | UNIV-EXTRA | skills/design-engine/SKILL.md | UX writing extension of rule 34 — same destination, no OD topic for voice. |
+| 50 | Dark Pattern Prevention Rules | UNIV | craft/anti-ai-slop.md | Universal craft (also a11y/ethics adjacent): no exit-prevention sheets, always provide reject option, no surprise full-screen ads. Best fit anti-ai-slop ("designed by human who has shipped product"). |
+| 51 | Graphic Resource Usage Principles | UNIV | craft/anti-ai-slop.md | Universal craft: no decorative particles/gradients, "one hero per screen", "no hand-drawn / cartoon / painterly", graphics serve meaning not decoration. Strong fit for anti-ai-slop banned-moves list. |
+| 52 | Design Reference Width & Resolution | UI-DASH | skills/mobile-dashboard/SKILL.md | 430px (vs 375px) reference and 1x/2x asset prep is mobile-dashboard scope. |
+| 53 | Component Composition & Screen Structure Principles | UI-DASH | skills/mobile-dashboard/SKILL.md | TopBar + Hero + sections + BottomNav order; "no nested cards / no carousel-in-carousel" — dashboard composition. |
+| 54 | Segment Control Rules | UNIV+TOK | craft/anti-ai-slop.md, tokens.json | Universal craft: pill-toggle vs segment-control decision criteria (key color emphasis vs neutral switching). Dimension tokens (28/36px sizes) are defaults. |
+| 55 | Drawer (Side Panel) Rules | UNIV-EXTRA | skills/design-engine/SKILL.md | Drawer vs bottom-sheet vs full-page decision tree is universal layout craft, no OD topic — design-engine. |
+| 56 | Dialog Detail Rules (ConfirmModal) | UNIV+UNIV-EXTRA | skills/design-engine/SKILL.md, craft/anti-ai-slop.md | Dialog structure is universal layout (design-engine). The "Close not Cancel" + "destructive button = bg-destructive" rules read as anti-slop craft (avoids confusing-dialog dark-pattern). |
+| 57 | Custom Icon Creation Rules | UNIV-EXTRA | skills/design-engine/SKILL.md | Custom icon API conventions (24x24 viewBox, stroke-based, currentColor, round caps) are universal but no OD topic — design-engine. |
+| 58 | TypeScript Token Usage Rules | UNIV-EXTRA | skills/design-engine/SKILL.md | Stack-implementation guidance: when to use Tailwind class vs tokens.ts object. Universal but stack-meta — design-engine. |
+| 59 | Animation Wrapper Rules (Framer Motion) | UNIV+TOK | craft/animation-discipline.md, tokens.json | Universal craft: motion-token mapping to Framer Motion durations, "no CSS+FM on same element", duration cap 0.5s. Duration tokens are defaults (overlaps rule 43). |
+| 60 | Formatting Utility Rules | UNIV-EXTRA | skills/design-engine/SKILL.md | utils/format.ts conventions — implementation-craft, no OD topic — design-engine. |
+| 61 | Visual Rhythm — Breaking Monotony | UI-DASH | skills/mobile-dashboard/SKILL.md | "Never repeat same section type twice in a row" is composition-recipe craft for dashboards (already in composition-recipes skill). UI-DASH because section types are A/B/C/D dashboard taxonomy. |
+| 62 | KPI Card Variation — The 4-Card Rule | UI-DASH | skills/mobile-dashboard/SKILL.md | KPI grid + "vary the secondary element" is core dashboard composition. |
+| 63 | Section Composition Recipes | UI-DASH | skills/mobile-dashboard/SKILL.md | SaaS / e-com / analytics / fintech recipes — explicit dashboard scope. |
+| 64 | Element Diversity Within Cards | UI-DASH | skills/mobile-dashboard/SKILL.md | "Mix content types across the page, max 2 of same per page" — dashboard composition. |
+| 65 | Color Accent Distribution | UNIV+UI-DASH | craft/color.md, skills/mobile-dashboard/SKILL.md | Universal: "accent scarcity rule — accent works through restraint" → color.md (already covered in OD's color.md but reinforced). Dashboard-specific: per-page accent inventory ("1 hero badge + 4 KPI badges + 1 nav + 1-2 progress + 1 chart highlight") → mobile-dashboard. Status color diversity in lists → also mobile-dashboard (list-row pattern). |
+| 66 | Card Size Variation | UI-DASH | skills/mobile-dashboard/SKILL.md | "Skyline rule" — specifically about dashboard card heights varying. UI-DASH. |
+| 67 | Progressive Information Density | UNIV+UI-DASH | craft/typography.md, skills/mobile-dashboard/SKILL.md | Universal: density+font-size gradient top-to-bottom (overview→detail) is typography/composition craft. Dashboard-specific: the exact size ladder by section position (hero 48 → KPI 36 → chart 18 → list 14 → activity 13). |
+| 68 | Empty Page Prevention | UI-DASH | skills/mobile-dashboard/SKILL.md | "Min 4, max 7 sections per dashboard page" — explicit dashboard composition rule. The "show EmptyState, never remove section" principle overlaps state-coverage but the count itself is UI-DASH. |
+| 69 | Chart + Context Pairing | UI-DASH | skills/mobile-dashboard/SKILL.md | "Chart alone is decoration not information" — dashboard composition (chart-heavy UI). Stat footer patterns + period-toggle requirements are dashboard idiom. |
