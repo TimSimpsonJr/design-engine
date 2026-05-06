@@ -2,6 +2,64 @@
 
 > Verbatim from [nexu-io/open-design `craft/animation-discipline.md`](https://github.com/nexu-io/open-design/blob/main/craft/animation-discipline.md). design-engine additions block prepended in Phase 3.
 
+## design-engine principles
+
+### Universal interaction discipline (from rule 24)
+
+Use a single transition idiom for all interactive feedback —
+`transition-all` (or platform equivalent) at the duration token, so
+color, shadow, and opacity changes resolve as one motion. Specific
+universal prohibitions:
+
+- **No hover effects on cards or list rows** — cards are content
+  surfaces, not buttons. Hover-on-card is an AI-template pattern
+  that misleads users into expecting interaction.
+- **No swipe gestures** outside of explicit carousels — swipe-to-
+  dismiss, swipe-to-reveal, and swipe menus add discoverability
+  problems and accessibility friction.
+- **No long-press / context menus** — desktop right-click idiom
+  ported badly to touch.
+
+When something is interactive, it should look interactive without
+needing the cursor to discover it.
+
+### Stagger choreography (from rule 43)
+
+When entering a grid of cards (KPI grid, list of skeletons), stagger
+the entrances rather than animating all-at-once or all-sequential.
+A short delay between cards (~50 ms) plus a short overall duration
+(~200 ms) per card produces the feel of choreographed motion without
+holding the user up. Reading order drives the stagger order
+(top-left → top-right → bottom-left → bottom-right for a 2×2). Under
+`prefers-reduced-motion`, drop the translate and let opacity carry
+the entrance — or skip the entrance entirely.
+
+### Animation prohibitions (from rule 43)
+
+Universal "never animate this" list:
+
+- **No scroll-linked animation** — parallax, shrinking-on-scroll
+  headers, scroll-triggered timelines. Vestibular trigger and a
+  performance trap.
+- **No card zoom in/out** as a state effect — color changes carry
+  the state better.
+- **No infinite-loop animations** anywhere in product UI, except
+  skeleton pulse while waiting on data. Looping motion drains
+  attention and battery and rarely earns its place.
+
+### CSS / Framer Motion mapping (from rule 59)
+
+When a project uses both CSS transitions and a JS motion library
+(Framer Motion, Motion One, etc.), wire them through the same
+duration tokens — `--duration-fast` (~100 ms), `--duration-normal`
+(~200 ms), `--duration-moderate` (~300 ms). Keep duration caps
+universal: nothing exceeding ~500 ms outside of cross-screen page
+transitions. **Never apply both CSS transitions and a JS motion
+library to the same element simultaneously** — they fight each other,
+and the diagnosis is painful.
+
+## OD baseline (verbatim from upstream)
+
 Universal rules for when motion earns its place in a UI and what numbers
 constrain it. The active `DESIGN.md` decides brand-specific motion
 personality; this file decides whether motion should run at all and at
