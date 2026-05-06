@@ -136,7 +136,7 @@ Aliases use brace syntax referencing dotted paths: `"$value": "{color.brand}"`. 
   },
   "shadow": {
     "$type": "shadow",
-    "sm": { "$value": { "color": "#000000", "offsetX": "0px", "offsetY": "1px", "blur": "2px", "spread": "0px" }, "$description": "Subtle shadow at 4% black" }
+    "sm": { "$value": { "color": "#0000000a", "offsetX": "0px", "offsetY": "1px", "blur": "2px", "spread": "0px" }, "$description": "Subtle shadow, ~4% black" }
   },
   "motion": {
     "duration": { "$type": "duration", "fast": { "$value": "120ms" }, "base": { "$value": "200ms" } }
