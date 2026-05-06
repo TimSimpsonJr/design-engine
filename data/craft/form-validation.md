@@ -2,6 +2,46 @@
 
 > Verbatim from [nexu-io/open-design `craft/form-validation.md`](https://github.com/nexu-io/open-design/blob/main/craft/form-validation.md). design-engine additions block prepended in Phase 3.
 
+## design-engine principles
+
+### Input field minimums and lifecycle (from rule 44)
+
+Two non-negotiables for any text input that ships to a real user:
+
+- **Inputs render at ≥ 16 px font size on iOS Safari** — anything
+  smaller triggers the auto-zoom-on-focus behavior that yanks the
+  user's viewport. This is universal craft, not stack-specific.
+- **Validation fires on blur, not on every keystroke.** Inline
+  validation that screams "invalid email" the moment the user types
+  the first letter is the loudest preventable form failure (Baymard
+  2024). The OD baseline below covers the full input state machine
+  (`pristine` → `dirty` → `touched` → `invalid-after-touched`); the
+  design-language reinforcement here is the timing rule.
+
+### CJK IME composition handling (from rule 44)
+
+For inputs that may receive CJK (Korean / Chinese / Japanese) IME
+input, suppress validation while the IME composition is active and
+re-validate after the `compositionend` event. Validating mid-
+composition fires errors against half-formed characters that aren't
+the user's actual input. This is a universal mobile / web rule —
+mobile platforms have analogous composition state on their text
+input APIs.
+
+### Label and error-message wiring (from rule 44)
+
+Universal field structure: a visible **label above the input**,
+medium-weight at ~13 px in muted text; the input itself; and an
+error message **below the input** in a distinct error color, ~12 px,
+shown only after the field transitions to an invalid-after-touched
+state. This pairs with the accessibility wiring in
+`accessibility-baseline.md` (`<label for>` + `aria-describedby` +
+`aria-invalid`) — the design-language layer here is just the
+visual recipe. Placeholder text is **not** a label; treat them as
+distinct concerns.
+
+## OD baseline (verbatim from upstream)
+
 Universal rules for form validation lifecycle, error wiring beyond the
 accessibility baseline, and the schema-as-contract layer that makes
 the same validation work on the server and the client. The active
