@@ -2,6 +2,102 @@
 
 > Verbatim from [nexu-io/open-design `craft/typography.md`](https://github.com/nexu-io/open-design/blob/main/craft/typography.md). design-engine additions block prepended in Phase 3.
 
+## design-engine principles
+
+### Multi-level type scale (from rule 3)
+
+A coherent UI defines a small, named set of type roles (display /
+headline / title / body / label / caption / micro) and reuses them.
+Don't invent ad-hoc sizes per screen. Every role binds size, weight,
+color, and line-height as a unit — picking a role at use-site is
+faster and more consistent than picking each property individually.
+Six to seven levels is enough for most products.
+
+### Label uppercase + tracking pattern (from rule 3)
+
+Category labels (the small caps line that titles a card or section)
+use uppercase plus positive letter-spacing as a fixed pattern. Without
+the tracking, uppercase looks cramped and amateur — this is the same
+floor noted under "Letter-spacing" below, applied as a recipe for
+labels: ~12 px medium weight, uppercase, tracking around `0.05em`,
+muted gray. Skipping any of the three ingredients (especially the
+tracking) is the most reliable label-tier slop tell.
+
+### Information pyramid (from rule 20)
+
+When stacking information vertically, hierarchy comes from a
+**decreasing font-size cascade**, not from extra weights or colors.
+The top of a page reads largest (one hero number), each subsequent
+section steps down (KPI grid → supporting block → list → detail). A
+flat type scale across stacked sections feels accidental; a
+descending scale feels designed.
+
+### Number + unit must not wrap (from rule 23)
+
+Any "number + unit" pair — `$48.2K`, `12.4%`, `3.8M`, `840K` — must
+render as a single unbreakable unit. Apply `whitespace-nowrap` (or
+the equivalent platform primitive) so the unit can never orphan to a
+new line. Numbers without units lose context; numbers wrapped from
+their unit lose readability. No exceptions for "long" lines — fix the
+container, not the number.
+
+### Wrapping behavior by text type (from rule 23)
+
+Different text roles have different wrapping rules. Single-line roles
+(metric numbers, dates, trend percentages, short status labels)
+require `whitespace-nowrap`. Single-line names that *can* overflow
+(company names, addresses) use `truncate` with ellipsis. Multi-line
+roles (briefing titles, descriptions) cap with `line-clamp-2` plus
+`leading-tight`. Body roles wrap naturally. Pick a wrapping behavior
+per role at definition time, not per use site.
+
+### Line-height by usage context (from rule 23)
+
+Line-height tracks role, not just size. `leading-none` (1.0) is for
+large numbers where you want zero air between digits and any wrapped
+content; `leading-tight` (~1.25) is for short multi-line text like
+briefing titles; `leading-snug` (~1.35) is for section titles;
+`leading-normal` (~1.5) is the body default. Mismatches are a common
+slop tell — body text at `leading-tight` reads cramped, big numbers
+at `leading-normal` waste space and feel decorative.
+
+### Text overflow strategy (from rule 32)
+
+Pick the overflow strategy at the role level, with a per-element
+character budget so designs don't break on real data:
+
+- Inline single-line names → `truncate` (ellipsis)
+- Multi-line titles → `line-clamp-2` plus `leading-tight`
+- Labels that can't shrink → use a shorter abbreviation, never a
+  smaller font
+
+Set rough max-character budgets per role (e.g. company name at
+14 px ≈ 12 chars before truncation) so layout reviews can flag the
+real-data case before it ships.
+
+### CJK typography craft (from rule 33)
+
+For Korean / Chinese / Japanese runs, two universal rules: use
+`word-break: keep-all` so lines break at word boundaries, not in the
+middle of a syllable cluster, and pair with `overflow-wrap: break-word`
+so long Latin URLs don't overflow. Minimum readable sizes are higher
+than Latin: CJK below 13 px reads poorly, and 10–12 px should be
+reserved for numbers / Latin abbreviations. Tall-ascender CJK fonts
+(Pretendard, Noto Sans CJK) sit visually low at large sizes — apply a
+small upward `padding-top` correction (≈2 px at 36–48 px) only after
+visual inspection, never globally.
+
+### Progressive density gradient (from rule 67)
+
+Down the length of a page, font sizes step **down** while information
+density steps **up** — the top is overview (one big number), the
+bottom is detail (many small rows). White space tightens going down.
+Reversing the gradient (small at the top, large at the bottom) feels
+upside-down. The exact ladder is product-specific, but the direction
+is universal.
+
+## OD baseline (verbatim from upstream)
+
 Universal typography rules that apply on top of any `DESIGN.md`. The
 active design system decides *which* fonts; this file decides *how* they
 behave at every size.
