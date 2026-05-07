@@ -27,25 +27,29 @@ Read `.design-rules/config.json` if it exists.
 - If marker's current `adapter` is `obsidian-css` → error: `Obsidian migration is not supported in v1. Run /design-init --reset instead.` Stop.
 - Otherwise → jump to the Migration Flow (M1) below. Skip Steps 1–8.
 
-**If marker is present and neither `--reset` nor `--migrate` was passed:**
+**If marker is present and `detectOldFormat(config) === true` (pre-schemaVersion-2):** jump to the Upgrade path section below. Skip Steps 1–8.
+
+**If marker is present and neither `--reset` nor `--migrate` was passed (and config is current schema):**
 - Display the current config to the user (adapter, skin, recipe, font, mode, settingsPage, createdAt)
 - Ask which path they want:
   - **A) Keep current** — abort the wizard, no changes
   - **B) Update specific fields** — they'll tell you which fields (skin, font, recipe, etc.) and you'll only re-prompt for those, then re-write the marker and any affected theme files
-  - **C) Full reset** — equivalent to `--reset`, proceed through every step from Step 1
+  - **C) Full reset** — equivalent to `--reset`, proceed through every step from Mode detection
   - **D) Migrate to a different adapter** — equivalent to `--migrate`, jump to the Migration Flow below
 - If A: print a confirmation and exit cleanly
 - If B: ask which fields, jump to the relevant steps, then to Step 7 (write artifacts) for only the changed pieces
-- If C: proceed to Step 1
+- If C: proceed to Mode detection
 - If D: jump to Migration Flow M1
 
-**If `--reset` was passed:** skip the prompt, proceed to Step 1.
+**If `--reset` was passed:** skip the prompt, proceed to Mode detection.
 
-**If marker is absent and `--migrate` was NOT passed:** proceed to Step 1.
+**If marker is absent and `--migrate` was NOT passed:** proceed to Mode detection.
 
 ## Mode detection
 
-Before scaffolding, check for an existing theme. Detection priority:
+Run this before Step 1 (Adapter detection). Mode detection determines whether to derive tokens from an existing theme or start from scratch. Step 1 then determines which framework adapter to use — it checks some of the same signals (shadcn, Astro, SvelteKit) but for a different purpose.
+
+Detection priority:
 
 1. **shadcn**: `components.json` exists at project root → derive mode, themeFile = value of `components.json.tailwind.css`.
 2. **Tailwind v3**: `tailwind.config.{js,ts,cjs,mjs}` exists → derive mode, themeFile = first `*.css` referenced in the config's `content` glob (or fallback to `src/styles/globals.css` / `src/index.css` if found).
@@ -58,9 +62,11 @@ If derive mode: invoke `theme-css-parse.ts:parseThemeCss(<themeFile>)` to extrac
 
 If scratch mode: prompt user to pick from `data/design-systems/<slug>/DESIGN.md`. Stamp the chosen DESIGN.md, derive tokens.json from it, scaffold theme.css from tokens.json into the adapter's default location.
 
+After mode detection completes, proceed to Step 1 (Adapter detection).
+
 ## Upgrade path (existing pre-schemaVersion-2 project)
 
-If `.design-rules/config.json` already exists and `detectOldFormat(config) === true`:
+This is a self-contained flow triggered from Step 0 when `detectOldFormat(config) === true`. It adds DESIGN.md, tokens.json, and register.md to an already-initialized project without re-running the full wizard.
 
 1. Resolve active skin via existing 4-source lookup. Bundled cache now returns DESIGN.md.
 2. Stamp `<root>/DESIGN.md` from the resolved DESIGN.md.
@@ -68,6 +74,8 @@ If `.design-rules/config.json` already exists and `detectOldFormat(config) === t
 4. Compare derived tokens.json against the existing theme.css; if values diverge (user customized), preserve theme.css values in tokens.json and emit a warning.
 5. Stamp `register.md` empty.
 6. Call `upgradeConfig(config, { themeFile })` and write back.
+
+After upgrade, print a summary of what was added (DESIGN.md, tokens.json, register.md, updated config.json) and stop. Do not continue to Step 1 — the project is already initialized.
 
 ## Step 1: Adapter detection
 
@@ -348,7 +356,7 @@ If the file exists, append a `# Design Engine Conventions` section (or replace i
 
 ### 7i. Skip `theme.css` in BYO mode
 
-In `mode == "retrofit-byo"`: do NOT write `theme.css`, `base.css`, or `fonts.css`. Only write the marker (`.design-rules/config.json`), `CLAUDE.md` block, and `.cursorrules`. The user keeps managing their own palette.
+In `mode == "retrofit-byo"`: do NOT write `theme.css`, `base.css`, or `fonts.css`. Only write the marker (`.design-rules/config.json`), `CLAUDE.md` block, `.cursorrules`, and the three schema files below (7j/7k/7l). The user keeps managing their own palette, but the design-system contract files are still written.
 
 ### 7j. Write DESIGN.md
 
