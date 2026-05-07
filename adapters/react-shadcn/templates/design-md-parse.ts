@@ -147,7 +147,7 @@ function parseFlatYamlBlock(block: string, group: TokenGroup): void {
   for (const line of lines) {
     const match = line.match(/^\s+([a-z][a-z0-9_-]*):\s+["']?([^"'\n]+)["']?\s*$/i);
     if (match) {
-      const key = match[1];
+      const key = match[1].toLowerCase();
       let value = match[2].trim();
       // Strip trailing quotes
       value = value.replace(/^["']|["']$/g, '');
@@ -210,12 +210,28 @@ type Section = { heading: string; body: string };
 
 function splitSections(md: string): Section[] {
   const sections: Section[] = [];
+  // Build a set of line offsets that are inside fenced code blocks
+  const lines = md.split(/\r?\n/);
+  const insideCodeBlock = new Set<number>();
+  let inCodeBlock = false;
+  let charOffset = 0;
+  for (const line of lines) {
+    if (/^```/.test(line)) {
+      inCodeBlock = !inCodeBlock;
+    } else if (inCodeBlock) {
+      insideCodeBlock.add(charOffset);
+    }
+    charOffset += line.length + 1; // +1 for the newline
+  }
+
   // Match H2 headings, numbered or unnumbered
   const h2Re = /^##\s+(.+)$/gm;
   let match: RegExpExecArray | null;
   const headings: Array<{ heading: string; index: number }> = [];
 
   while ((match = h2Re.exec(md)) !== null) {
+    // Skip H2 matches inside fenced code blocks
+    if (insideCodeBlock.has(match.index)) continue;
     headings.push({ heading: match[1].trim(), index: match.index + match[0].length });
   }
 
@@ -240,20 +256,20 @@ function classifySection(heading: string): SectionKind | null {
   const stripped = heading.replace(/^\d+\.\s*/, '').toLowerCase();
 
   if (/color\s*palette|colors?\b/.test(stripped)) return 'color';
-  if (/typography|font/i.test(stripped)) return 'typography';
-  if (/layout|spacing/i.test(stripped)) return 'layout';
-  if (/depth|elevation|shadow/i.test(stripped)) return 'elevation';
+  if (/typography|font/.test(stripped)) return 'typography';
+  if (/layout|spacing/.test(stripped)) return 'layout';
+  if (/depth|elevation|shadow/.test(stripped)) return 'elevation';
   if (/shapes?\b/.test(stripped)) return 'layout'; // "Shapes" section often has radius
 
   // Known narrative-only sections
-  if (/visual\s*theme|atmosphere/i.test(stripped)) return 'ignore';
-  if (/component\s*styl/i.test(stripped)) return 'ignore';
-  if (/do.s?\s*(and|&)\s*don.t/i.test(stripped)) return 'ignore';
-  if (/responsive/i.test(stripped)) return 'ignore';
-  if (/agent\s*prompt/i.test(stripped)) return 'ignore';
-  if (/overview/i.test(stripped)) return 'ignore';
-  if (/iteration/i.test(stripped)) return 'ignore';
-  if (/known\s*gap/i.test(stripped)) return 'ignore';
+  if (/visual\s*theme|atmosphere/.test(stripped)) return 'ignore';
+  if (/component\s*styl/.test(stripped)) return 'ignore';
+  if (/do.s?\s*(and|&)\s*don.t/.test(stripped)) return 'ignore';
+  if (/responsive/.test(stripped)) return 'ignore';
+  if (/agent\s*prompt/.test(stripped)) return 'ignore';
+  if (/overview/.test(stripped)) return 'ignore';
+  if (/iteration/.test(stripped)) return 'ignore';
+  if (/known\s*gap/.test(stripped)) return 'ignore';
 
   // Unknown section — return null (ignored silently)
   return null;
@@ -308,6 +324,11 @@ function parseTypographySection(body: string, tokens: Tokens): void {
     if (fontMatch) {
       const label = fontMatch[1].trim().toLowerCase();
       const fontValue = fontMatch[2].trim();
+      // Only accept font-family-related labels; reject spurious matches
+      // like "OpenType Features" or other bold-label-colon-backtick patterns
+      if (!/^(primary|secondary|display|body|text|mono|monospace|serif|sans|heading|code|default|main|fallback|accent|brand|ui)$/i.test(label)) {
+        continue;
+      }
       if (/primary|display|default|main|body/i.test(label)) {
         (tokens.font as any).primary = { $value: fontValue };
       } else {
@@ -468,6 +489,7 @@ function parseLayoutSection(body: string, tokens: Tokens): void {
 
 function parseRadiusFromBody(body: string, tokens: Tokens): void {
   const lines = body.split(/\r?\n/);
+  let lineCharOffset = 0;
 
   for (const line of lines) {
     // Pattern: Standard (4px) or Micro (1px) — from Stripe layout
@@ -478,7 +500,9 @@ function parseRadiusFromBody(body: string, tokens: Tokens): void {
       const name = radiusMatch[1].trim();
       const value = radiusMatch[2];
       // Only if this looks like a radius entry (near "radius" content)
-      if (/radius|round|corner/i.test(body.slice(Math.max(0, body.indexOf(line) - 200), body.indexOf(line) + line.length))) {
+      const contextStart = Math.max(0, lineCharOffset - 200);
+      const contextEnd = lineCharOffset + line.length;
+      if (/radius|round|corner/i.test(body.slice(contextStart, contextEnd))) {
         const key = slugify(name);
         if (key && !(tokens.radius as any)[key]) {
           (tokens.radius as any)[key] = { $value: value };
@@ -496,13 +520,15 @@ function parseRadiusFromBody(body: string, tokens: Tokens): void {
 
     // Pattern: | Token | Value | (non-reference table format: | xs | 4px |)
     const simpleTableMatch = line.match(/\|\s*`?([a-z][a-z0-9_-]*)`?\s*\|\s*(\d+px)\s*\|/i);
-    if (simpleTableMatch && /radius|round|corner/i.test(body.slice(0, body.indexOf(line) + line.length))) {
+    if (simpleTableMatch && /radius|round|corner/i.test(body.slice(0, lineCharOffset + line.length))) {
       const key = simpleTableMatch[1];
       const value = simpleTableMatch[2];
       if (!(tokens.radius as any)[key]) {
         (tokens.radius as any)[key] = { $value: value };
       }
     }
+
+    lineCharOffset += line.length + 1; // +1 for the newline
   }
 }
 
