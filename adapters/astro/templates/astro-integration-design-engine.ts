@@ -8,24 +8,54 @@
 import type { AstroIntegration } from 'astro';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import {
-  readTokens, writeTokens, writeFontImports, buildGoogleFontsUrl,
-  type Mode, type ColorTokens
-} from './theme-io';
-import { fetchGoogleFontsCatalog } from './google-fonts-catalog';
+  writeTokensToCss,
+  type Tokens
+} from './theme-io.ts';
+import { fetchGoogleFontsCatalog } from './google-fonts-catalog.ts';
 
-export type DesignEngineIntegrationOptions = {
-  themePath?: string;
-  fontsPath?: string;
-};
+function validateW3CShape(body: unknown): asserts body is Tokens {
+  if (!body || typeof body !== 'object') throw new Error('Body must be a token object');
+  for (const [group, groupObj] of Object.entries(body as Record<string, unknown>)) {
+    if (!groupObj || typeof groupObj !== 'object') throw new Error(`Group "${group}" must be an object`);
+    for (const [key, val] of Object.entries(groupObj as Record<string, unknown>)) {
+      if (key === '$type') continue;
+      if (!val || typeof val !== 'object' || !('$value' in (val as Record<string, unknown>))) {
+        throw new Error(`Token "${group}.${key}" must have a $value property`);
+      }
+    }
+  }
+}
 
-const DEFAULT_THEME = 'src/styles/theme.css';
-const DEFAULT_FONTS = 'src/styles/fonts.css';
+export async function handleGetTokens({ projectRoot }: { projectRoot: string }): Promise<Tokens> {
+  const tokensPath = resolve(projectRoot, 'tokens.json');
+  const raw = await readFile(tokensPath, 'utf8');
+  return JSON.parse(raw);
+}
 
-export default function designEngine(options: DesignEngineIntegrationOptions = {}): AstroIntegration {
-  const themePath = options.themePath ?? DEFAULT_THEME;
-  const fontsPath = options.fontsPath ?? DEFAULT_FONTS;
+export async function handlePostTokens({ projectRoot, body }: { projectRoot: string; body: unknown }): Promise<{ tokens: Tokens }> {
+  validateW3CShape(body);
+  const tokens = body as Tokens;
+
+  const tokensPath = resolve(projectRoot, 'tokens.json');
+  await writeFile(tokensPath, JSON.stringify(tokens, null, 2) + '\n', 'utf8');
+
+  const configPath = resolve(projectRoot, '.design-rules', 'config.json');
+  const config = JSON.parse(await readFile(configPath, 'utf8'));
+  const themeFile = config.themeFile;
+
+  if (themeFile) {
+    const themePath = resolve(projectRoot, themeFile);
+    const existingCss = await readFile(themePath, 'utf8');
+    const newCss = writeTokensToCss(tokens, { existing: existingCss });
+    await writeFile(themePath, newCss, 'utf8');
+  }
+
+  return { tokens };
+}
+
+export default function designEngine(_options: {} = {}): AstroIntegration {
   const here = dirname(fileURLToPath(import.meta.url));
 
   return {
@@ -33,8 +63,6 @@ export default function designEngine(options: DesignEngineIntegrationOptions = {
     hooks: {
       'astro:server:setup': ({ server }) => {
         const root = server.config.root;
-        const fullThemePath = resolve(root, themePath);
-        const fullFontsPath = resolve(root, fontsPath);
 
         server.middlewares.use(async (req, res, next) => {
           const url = req.url ?? '';
@@ -81,23 +109,25 @@ export default function designEngine(options: DesignEngineIntegrationOptions = {
             return;
           }
 
+          // GET tokens
           if (url === '/__design/api/tokens' && req.method === 'GET') {
-            const result = await readTokens(fullThemePath);
             res.setHeader('content-type', 'application/json');
-            if (result.ok) {
-              res.end(JSON.stringify(result.tokens));
-            } else {
+            try {
+              const tokens = await handleGetTokens({ projectRoot: root });
+              res.end(JSON.stringify(tokens));
+            } catch (err) {
               res.statusCode = 409;
-              res.end(JSON.stringify({ error: result.error, message: result.message }));
+              res.end(JSON.stringify({ error: 'read_failed', message: String(err) }));
             }
             return;
           }
 
+          // POST tokens
           if (url === '/__design/api/tokens' && req.method === 'POST') {
             let body = '';
             req.setEncoding('utf8');
             for await (const chunk of req) body += chunk;
-            let parsed: { mode: Mode; colors: ColorTokens; font?: string; fontImport?: { name: string; weights?: number[]; axisRange?: string } | null };
+            let parsed: unknown;
             try {
               parsed = JSON.parse(body);
             } catch {
@@ -106,36 +136,15 @@ export default function designEngine(options: DesignEngineIntegrationOptions = {
               res.end(JSON.stringify({ ok: false, error: 'bad_request', message: 'Invalid JSON' }));
               return;
             }
-
-            const writeResult = await writeTokens(fullThemePath, parsed.mode, parsed.colors, parsed.font);
-            if (!writeResult.ok) {
-              res.statusCode = 409;
+            try {
+              const result = await handlePostTokens({ projectRoot: root, body: parsed });
               res.setHeader('content-type', 'application/json');
-              res.end(JSON.stringify({ ok: false, error: writeResult.error, message: writeResult.message }));
-              return;
+              res.end(JSON.stringify({ ok: true, tokens: result.tokens }));
+            } catch (err) {
+              res.statusCode = 422;
+              res.setHeader('content-type', 'application/json');
+              res.end(JSON.stringify({ ok: false, error: 'validation_failed', message: String(err) }));
             }
-
-            if (parsed.fontImport && parsed.fontImport.name) {
-              const importUrl = buildGoogleFontsUrl(parsed.fontImport.name, parsed.fontImport.weights, parsed.fontImport.axisRange);
-              const fontResult = await writeFontImports(fullFontsPath, [{ name: parsed.fontImport.name, url: importUrl }]);
-              if (!fontResult.ok) {
-                res.statusCode = 207;
-                res.setHeader('content-type', 'application/json');
-                res.end(JSON.stringify({ ok: false, error: 'font_write_failed', message: fontResult.message, tokens: writeResult.tokens }));
-                return;
-              }
-            } else if (parsed.fontImport === null) {
-              const fontResult = await writeFontImports(fullFontsPath, []);
-              if (!fontResult.ok) {
-                res.statusCode = 207;
-                res.setHeader('content-type', 'application/json');
-                res.end(JSON.stringify({ ok: false, error: 'font_write_failed', message: fontResult.message, tokens: writeResult.tokens }));
-                return;
-              }
-            }
-
-            res.setHeader('content-type', 'application/json');
-            res.end(JSON.stringify({ ok: true, tokens: writeResult.tokens }));
             return;
           }
 
