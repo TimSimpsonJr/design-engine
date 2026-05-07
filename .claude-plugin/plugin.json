@@ -1,7 +1,7 @@
 {
   "name": "design-engine",
   "description": "Stack-agnostic design system toolkit. Ports bitjaru/styleseed (MIT) into a Claude Code plugin with skills, commands, audit agents, and adapters for React+shadcn, Astro, SvelteKit, Obsidian, and plain CSS.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": {
     "name": "Tim Simpson"
   },
