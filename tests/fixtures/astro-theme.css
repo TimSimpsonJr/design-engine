@@ -1,0 +1,33 @@
+:root {
+  --brand: #6d28d9;
+  --background: #fafaf9;
+  --foreground: #1c1917;
+  --surface: #ffffff;
+  --surface-alt: #f5f5f4;
+  --border: #e7e5e4;
+  --text-muted: #78716c;
+  --link: #7c3aed;
+  --success: #16a34a;
+  --warning: #d97706;
+  --error: #dc2626;
+
+  --radius: 0.5rem;
+  --radius-sm: 0.25rem;
+  --radius-lg: 1rem;
+
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 2rem;
+  --spacing-xl: 4rem;
+
+  --font-body: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --font-heading: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
+
+  --duration-fast: 100ms;
+  --duration-normal: 200ms;
+}
