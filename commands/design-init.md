@@ -43,6 +43,32 @@ Read `.design-rules/config.json` if it exists.
 
 **If marker is absent and `--migrate` was NOT passed:** proceed to Step 1.
 
+## Mode detection
+
+Before scaffolding, check for an existing theme. Detection priority:
+
+1. **shadcn**: `components.json` exists at project root → derive mode, themeFile = value of `components.json.tailwind.css`.
+2. **Tailwind v3**: `tailwind.config.{js,ts,cjs,mjs}` exists → derive mode, themeFile = first `*.css` referenced in the config's `content` glob (or fallback to `src/styles/globals.css` / `src/index.css` if found).
+3. **Tailwind v4 `@theme` directive in any `*.css`**: grep for `@theme {` or `@theme inline {` in `src/**/*.css`, `app/**/*.css` → derive mode, themeFile = the matching file.
+4. **Astro**: `astro.config.{mjs,ts,js}` exists → derive mode, themeFile = first `*.css` in `src/styles/`.
+5. **SvelteKit**: `svelte.config.{js,ts}` exists → derive mode, themeFile = `src/app.css` or `src/routes/+layout.svelte`-referenced CSS.
+6. Fallback: scratch mode (with confirmation prompt: "No existing theme detected. Initialize from scratch?").
+
+If derive mode: invoke `theme-css-parse.ts:parseThemeCss(<themeFile>)` to extract tokens, then `design-md-emit.ts:emitDesignMdSkeleton(tokens, { name, mode: 'full' })` to template-fill DESIGN.md skeleton (Sections 2/3/5/6 derived from extracted tokens; Sections 1/4/7/8/9 stubbed with TODO markers).
+
+If scratch mode: prompt user to pick from `data/design-systems/<slug>/DESIGN.md`. Stamp the chosen DESIGN.md, derive tokens.json from it, scaffold theme.css from tokens.json into the adapter's default location.
+
+## Upgrade path (existing pre-schemaVersion-2 project)
+
+If `.design-rules/config.json` already exists and `detectOldFormat(config) === true`:
+
+1. Resolve active skin via existing 4-source lookup. Bundled cache now returns DESIGN.md.
+2. Stamp `<root>/DESIGN.md` from the resolved DESIGN.md.
+3. Derive tokens.json from DESIGN.md.
+4. Compare derived tokens.json against the existing theme.css; if values diverge (user customized), preserve theme.css values in tokens.json and emit a warning.
+5. Stamp `register.md` empty.
+6. Call `upgradeConfig(config, { themeFile })` and write back.
+
 ## Step 1: Adapter detection
 
 Run signal checks against the project root. Use Bash (do NOT pipe through `grep -q`-style chains that swallow output — capture the result and reason about it). Detection signals:
@@ -324,6 +350,38 @@ If the file exists, append a `# Design Engine Conventions` section (or replace i
 
 In `mode == "retrofit-byo"`: do NOT write `theme.css`, `base.css`, or `fonts.css`. Only write the marker (`.design-rules/config.json`), `CLAUDE.md` block, and `.cursorrules`. The user keeps managing their own palette.
 
+### 7j. Write DESIGN.md
+
+- In derive mode: DESIGN.md was already generated from `emitDesignMdSkeleton` during mode detection. Write it at `<root>/DESIGN.md`.
+- In scratch mode: the chosen design-system's DESIGN.md was already selected. Copy it to `<root>/DESIGN.md`.
+
+### 7k. Write tokens.json
+
+Parse DESIGN.md using `design-md-parse.ts:parseDesignMd()` to extract tokens. Write `<root>/tokens.json` in W3C Design Tokens format.
+
+### 7l. Write register.md
+
+Write an empty 5-section template at `<root>/register.md`:
+
+```markdown
+# Visual Register: <name>
+
+## 1. Color Stance
+<!-- TODO: describe temperature, saturation behavior, accent rules, neutral character -->
+
+## 2. Spatial Logic
+<!-- TODO: describe density, breathing room, asymmetry tendencies, grid relationship -->
+
+## 3. Type Behavior
+<!-- TODO: describe weight contrast, scale jumps, tracking habits, italic/serif role -->
+
+## 4. Composition Moves
+<!-- TODO: describe focal restraint, repetition tolerance, hierarchy mechanisms, ornament posture -->
+
+## 5. Material Posture
+<!-- TODO: describe flatness vs. depth, texture, gloss/matte, photographic vs. illustrative -->
+```
+
 ## Step 8: Summary
 
 Print a summary to the user:
@@ -344,6 +402,9 @@ Files written:
 - src/styles/{base,fonts,index}.css
 - CLAUDE.md (conventions block appended/created)
 - .cursorrules (only if adapter declares cursorRules: true)
+- DESIGN.md (from chosen design-system or generated skeleton)
+- tokens.json (derived from DESIGN.md)
+- register.md (empty 5-section template)
 
 Next steps:
 - /design-page <name> "<description>" — scaffold first page
@@ -572,6 +633,11 @@ For each candidate path, **byte-compare against canonical content** before auto-
 - Respect existing files: never silently overwrite. The retrofit logic in Step 2 is the only place where palette overwriting is explicitly user-approved.
 - If anything fails mid-write (e.g., adapter manifest missing), stop, report what was written, and tell the user how to clean up.
 - The `${CLAUDE_PLUGIN_ROOT}` variable resolves at runtime to the design-engine plugin's install directory. Use it for all reads from `adapters/`, `data/skins/`, `data/recipes/`, `data/tokens/`.
+
+- In derive mode, use `parseThemeCss()` from `adapters/react-shadcn/templates/theme-css-parse.ts` (or the adapter-specific copy) to reverse-parse the existing theme CSS into tokens. Then use `emitDesignMdSkeleton()` from `adapters/react-shadcn/templates/design-md-emit.ts` to generate the DESIGN.md skeleton.
+- In scratch mode, use `parseDesignMd()` from `adapters/react-shadcn/templates/design-md-parse.ts` to derive tokens.json from the chosen DESIGN.md.
+- `register.md` is always stamped as an empty 5-section template. Population happens later via canvas-side extraction.
+- For the upgrade path, use `detectOldFormat()` and `upgradeConfig()` from `adapters/react-shadcn/templates/upgrade-config.ts`.
 
 ### Migration-specific notes
 
