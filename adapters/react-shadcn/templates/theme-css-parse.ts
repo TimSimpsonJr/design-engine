@@ -123,7 +123,7 @@ function classifyVar(
 // ---------------------------------------------------------------------------
 
 function isUnparseable(value: string): boolean {
-  return /\bvar\s*\(/.test(value) || /\bcalc\s*\(/.test(value);
+  return /\b(?:var|calc|env|color-mix|light-dark|clamp)\s*\(/.test(value);
 }
 
 // ---------------------------------------------------------------------------
@@ -164,10 +164,13 @@ function extractVarsFromBody(
   pairs: Array<{ name: string; value: string }>,
   seen: Set<string>,
 ): void {
-  // First, try to extract declarations at this level
+  // Strip block comments to avoid extracting commented-out declarations
+  const stripped = body.replace(/\/\*[\s\S]*?\*\//g, '');
+
+  // Extract declarations at this level
   const declRe = /--([a-z][a-z0-9-]*)\s*:\s*([^;{}]+);/gi;
   let declMatch: RegExpExecArray | null;
-  while ((declMatch = declRe.exec(body)) !== null) {
+  while ((declMatch = declRe.exec(stripped)) !== null) {
     const name = declMatch[1].trim();
     const value = declMatch[2].trim();
     if (!seen.has(name)) {

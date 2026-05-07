@@ -183,3 +183,23 @@ test('parseThemeCss handles CSS with only comments', () => {
   const tokens = parseThemeCss('/* just a comment */');
   assert.ok(tokens.color);
 });
+
+test('parseThemeCss ignores commented-out declarations', () => {
+  const css = `:root {
+    /* --old-brand: #abc; */
+    --brand: #def;
+  }`;
+  const tokens = parseThemeCss(css);
+  assert.equal(tokens.color.brand?.$value, '#def');
+  assert.equal(tokens.color['old-brand'], undefined, 'commented-out var should not be extracted');
+});
+
+test('parseThemeCss marks env() and color-mix() as unparseable', () => {
+  const css = `:root {
+    --color-safe: env(safe-area-inset-top);
+    --color-mixed: color-mix(in oklch, #abc 50%, #def);
+  }`;
+  const tokens = parseThemeCss(css);
+  assert.equal(tokens.color.safe?.$extensions?.designEngine?.unparseable, true);
+  assert.equal(tokens.color.mixed?.$extensions?.designEngine?.unparseable, true);
+});
