@@ -7,6 +7,8 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash
 
 # /design-settings-page — Generate Runtime Settings Page
 
+> **Active design system:** if `<project-root>/DESIGN.md` exists, read it for narrative context. The "Visual Theme & Atmosphere" and "Do's and Don'ts" sections are particularly relevant to generation tone.
+
 You are scaffolding a runtime settings/tokens UI in the current project. This command uses the active adapter (recorded in `.design-rules/config.json`) to pick the right template, substitutes default tokens with the current skin's values, and writes the result to the appropriate route path.
 
 ## Step 1: Verify project initialized

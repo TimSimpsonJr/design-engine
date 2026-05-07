@@ -7,6 +7,8 @@ allowed-tools: Task
 
 # /design-a11y — Accessibility audit
 
+> **Active design system:** if `<project-root>/DESIGN.md` exists, read it for narrative context. The "Visual Theme & Atmosphere" and "Do's and Don'ts" sections are particularly relevant to generation tone.
+
 Review the target for WCAG 2.2 AA compliance by invoking the `accessibility-reviewer` agent.
 
 ## Step 1: Parse arguments

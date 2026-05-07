@@ -7,6 +7,8 @@ allowed-tools: Task
 
 # /design-audit — UX audit
 
+> **Active design system:** if `<project-root>/DESIGN.md` exists, read it for narrative context. The "Visual Theme & Atmosphere" and "Do's and Don'ts" sections are particularly relevant to generation tone.
+
 Audit the target for usability issues by invoking the `ux-auditor` agent. This is read-only — the agent reports findings and does not edit code.
 
 ## Step 1: Parse arguments

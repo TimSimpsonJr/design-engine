@@ -7,6 +7,8 @@ allowed-tools: Read, Write, Edit, Grep, Glob
 
 # /design-feedback — UX Feedback States Generator
 
+> **Active design system:** if `<project-root>/DESIGN.md` exists, read it for narrative context. The "Visual Theme & Atmosphere" and "Do's and Don'ts" sections are particularly relevant to generation tone.
+
 Target: **$ARGUMENTS**
 
 You are editing a target file to add the four data-state UI patterns: loading (skeleton), empty (zero data), error (load failed), success (action confirmation). Output is an in-place edit of the target file, plus a short summary of what was added.

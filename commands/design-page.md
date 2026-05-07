@@ -7,6 +7,8 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash
 
 # /design-page — Scaffold a New Page
 
+> **Active design system:** if `<project-root>/DESIGN.md` exists, read it for narrative context. The "Visual Theme & Atmosphere" and "Do's and Don'ts" sections are particularly relevant to generation tone.
+
 You are generating a new page file in the user's project, using the active adapter's page template and the active (or overridden) recipe to expand sections. Output is a single file written at the adapter's expected path.
 
 ## Step 0: Parse arguments
