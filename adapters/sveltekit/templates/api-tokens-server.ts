@@ -14,95 +14,77 @@ import { json, error } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import type { RequestHandler } from './$types';
 import { resolve } from 'node:path';
+import { readFile, writeFile } from 'node:fs/promises';
 import {
-  readTokens,
-  writeTokens,
-  writeFontImports,
-  buildGoogleFontsUrl,
-  type Mode,
-  type ColorTokens,
+  writeTokensToCss,
+  type Tokens,
 } from '$lib/server/design-engine/theme-io';
 
-const DEFAULT_THEME = 'src/lib/styles/theme.css';
-const DEFAULT_FONTS = 'src/lib/styles/fonts.css';
-
-function themePath(): string {
-  return resolve(process.cwd(), DEFAULT_THEME);
+function validateW3CShape(body: unknown): asserts body is Tokens {
+  if (!body || typeof body !== 'object') throw new Error('Body must be a token object');
+  for (const [group, groupObj] of Object.entries(body as Record<string, unknown>)) {
+    if (!groupObj || typeof groupObj !== 'object') throw new Error(`Group "${group}" must be an object`);
+    for (const [key, val] of Object.entries(groupObj as Record<string, unknown>)) {
+      if (key === '$type') continue;
+      if (!val || typeof val !== 'object' || !('$value' in (val as Record<string, unknown>))) {
+        throw new Error(`Token "${group}.${key}" must have a $value property`);
+      }
+    }
+  }
 }
 
-function fontsPath(): string {
-  return resolve(process.cwd(), DEFAULT_FONTS);
+async function handleGetTokens({ projectRoot }: { projectRoot: string }): Promise<Tokens> {
+  const tokensPath = resolve(projectRoot, 'tokens.json');
+  const raw = await readFile(tokensPath, 'utf8');
+  return JSON.parse(raw);
+}
+
+async function handlePostTokens({ projectRoot, body }: { projectRoot: string; body: unknown }): Promise<{ tokens: Tokens }> {
+  validateW3CShape(body);
+  const tokens = body as Tokens;
+
+  const tokensPath = resolve(projectRoot, 'tokens.json');
+  await writeFile(tokensPath, JSON.stringify(tokens, null, 2) + '\n', 'utf8');
+
+  const configPath = resolve(projectRoot, '.design-rules', 'config.json');
+  const config = JSON.parse(await readFile(configPath, 'utf8'));
+  const themeFile = config.themeFile;
+
+  if (themeFile) {
+    const themePath = resolve(projectRoot, themeFile);
+    const existingCss = await readFile(themePath, 'utf8');
+    const newCss = writeTokensToCss(tokens, { existing: existingCss });
+    await writeFile(themePath, newCss, 'utf8');
+  }
+
+  return { tokens };
 }
 
 export const GET: RequestHandler = async () => {
   if (!dev) error(404);
 
-  const result = await readTokens(themePath());
-  if (!result.ok) {
-    return json({ error: result.error, message: result.message }, { status: 409 });
+  try {
+    const tokens = await handleGetTokens({ projectRoot: process.cwd() });
+    return json(tokens);
+  } catch (e) {
+    return json({ error: 'read_failed', message: String(e) }, { status: 409 });
   }
-  return json(result.tokens);
-};
-
-type PostBody = {
-  mode: Mode;
-  colors: ColorTokens;
-  font?: string;
-  fontImport?: { name: string; weights?: number[]; axisRange?: string } | null;
 };
 
 export const POST: RequestHandler = async ({ request }) => {
   if (!dev) error(404);
 
-  let parsed: PostBody;
+  let parsed: unknown;
   try {
     parsed = await request.json();
   } catch {
     return json({ ok: false, error: 'bad_request', message: 'Invalid JSON' }, { status: 400 });
   }
 
-  const writeResult = await writeTokens(themePath(), parsed.mode, parsed.colors, parsed.font);
-  if (!writeResult.ok) {
-    return json(
-      { ok: false, error: writeResult.error, message: writeResult.message },
-      { status: 409 },
-    );
+  try {
+    const result = await handlePostTokens({ projectRoot: process.cwd(), body: parsed });
+    return json({ ok: true, tokens: result.tokens });
+  } catch (e) {
+    return json({ ok: false, error: 'validation_failed', message: String(e) }, { status: 422 });
   }
-
-  if (parsed.fontImport && parsed.fontImport.name) {
-    const importUrl = buildGoogleFontsUrl(
-      parsed.fontImport.name,
-      parsed.fontImport.weights,
-      parsed.fontImport.axisRange,
-    );
-    const fontResult = await writeFontImports(fontsPath(), [
-      { name: parsed.fontImport.name, url: importUrl },
-    ]);
-    if (!fontResult.ok) {
-      return json(
-        {
-          ok: false,
-          error: 'font_write_failed',
-          message: fontResult.message,
-          tokens: writeResult.tokens,
-        },
-        { status: 207 },
-      );
-    }
-  } else if (parsed.fontImport === null) {
-    const fontResult = await writeFontImports(fontsPath(), []);
-    if (!fontResult.ok) {
-      return json(
-        {
-          ok: false,
-          error: 'font_write_failed',
-          message: fontResult.message,
-          tokens: writeResult.tokens,
-        },
-        { status: 207 },
-      );
-    }
-  }
-
-  return json({ ok: true, tokens: writeResult.tokens });
 };

@@ -10,16 +10,40 @@
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
 
-  const MANAGED_COLOR_KEYS = [
-    'brand', 'primary', 'background', 'card', 'foreground',
-    'destructive', 'success', 'warning', 'info',
-  ] as const;
-  type ColorKey = (typeof MANAGED_COLOR_KEYS)[number];
-  type Mode = 'light' | 'dark';
-  type ColorTokens = Record<ColorKey, string>;
-  type TokenSet = { light: ColorTokens; dark: ColorTokens; font: string };
+  type TokenValue = { $value: string };
+  type TokenGroup = { $type?: string; [name: string]: TokenValue | string | undefined };
+  type Tokens = { [group: string]: TokenGroup };
   type FontEntry = { family: string; category: string; weights?: number[]; axisRange?: string };
-  type FontImport = { name: string; weights?: number[]; axisRange?: string } | null;
+
+  const GROUP_TO_PREFIX: Record<string, string> = {
+    color: '', radius: 'radius', font: 'font',
+    shadow: 'shadow', spacing: 'spacing', motion: 'duration',
+  };
+  const COLOR_RE = /^#(?:[0-9a-f]{3,8})$/i;
+  const COLOR_FUNC_RE = /^(?:oklch|oklab|hsl|hsla|rgb|rgba)\s*\(/i;
+
+  function tokenKeyToCssName(group: string, key: string): string {
+    const prefix = GROUP_TO_PREFIX[group];
+    if (prefix === undefined) return key;
+    if (prefix === '') return key;
+    if (key === 'default') return prefix;
+    return `${prefix}-${key}`;
+  }
+
+  function isColorValue(value: string): boolean {
+    return COLOR_RE.test(value) || COLOR_FUNC_RE.test(value);
+  }
+
+  function getFontFamily(t: Tokens | null): string {
+    if (!t?.font) return 'Inter';
+    for (const [key, val] of Object.entries(t.font)) {
+      if (key === '$type') continue;
+      if (val && typeof val === 'object' && '$value' in val) {
+        return val.$value.split(',')[0].trim().replace(/^['"]|['"]$/g, '');
+      }
+    }
+    return 'Inter';
+  }
 
   const OFFLINE_FONTS: FontEntry[] = [
     { family: 'Inter', category: 'sans-serif', weights: [400, 500, 600, 700, 800] },
@@ -44,8 +68,7 @@
   const GOOGLE_FONTS_PROXY_URL = '/__design/api/google-fonts';
   const CATALOG_CACHE_KEY = 'de-google-fonts-catalog-v2';
 
-  let tokens = $state<TokenSet | null>(null);
-  let mode = $state<Mode>('light');
+  let tokens = $state<Tokens | null>(null);
   let loadError = $state<string | null>(null);
   let saveError = $state<string | null>(null);
   let statusKind = $state<'idle' | 'saving' | 'saved'>('idle');
@@ -53,7 +76,6 @@
   let suggestionsOpen = $state<boolean>(false);
   let fontEntries = $state<FontEntry[]>(OFFLINE_FONTS);
 
-  let pendingFontImport: FontImport | undefined = undefined;
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
   let savedHideTimer: ReturnType<typeof setTimeout> | null = null;
   let suggestionsHideTimer: ReturnType<typeof setTimeout> | null = null;
@@ -66,27 +88,33 @@
 
   const cssOutput = $derived(generateCss(tokens));
 
-  function generateCss(t: TokenSet | null): string {
+  function generateCss(t: Tokens | null): string {
     if (!t) return '';
-    const light = MANAGED_COLOR_KEYS.map((k) => `  --${k}: ${t.light[k]};`).join('\n');
-    const dark = MANAGED_COLOR_KEYS.map((k) => `  --${k}: ${t.dark[k]};`).join('\n');
-    return `:root {\n${light}\n  --font-primary: '${t.font}', system-ui, sans-serif;\n}\n\n.dark {\n${dark}\n}`;
+    const lines: string[] = [];
+    for (const [group, groupObj] of Object.entries(t)) {
+      for (const [key, val] of Object.entries(groupObj)) {
+        if (key === '$type') continue;
+        if (!val || typeof val === 'string') continue;
+        const cssName = tokenKeyToCssName(group, key);
+        lines.push(`  --${cssName}: ${val.$value};`);
+      }
+    }
+    return `:root {\n${lines.join('\n')}\n}`;
   }
 
-  function styleVars(t: TokenSet, m: Mode): string {
-    const c = t[m];
-    return [
-      `--de-brand: ${c.brand}`,
-      `--de-primary: ${c.primary}`,
-      `--de-background: ${c.background}`,
-      `--de-card: ${c.card}`,
-      `--de-foreground: ${c.foreground}`,
-      `--de-destructive: ${c.destructive}`,
-      `--de-success: ${c.success}`,
-      `--de-warning: ${c.warning}`,
-      `--de-info: ${c.info}`,
-      `--de-font-primary: '${t.font}', system-ui, sans-serif`,
-    ].join('; ');
+  function styleVars(t: Tokens): string {
+    const vars: string[] = [];
+    for (const [group, groupObj] of Object.entries(t)) {
+      for (const [key, val] of Object.entries(groupObj)) {
+        if (key === '$type') continue;
+        if (!val || typeof val !== 'object' || !('$value' in val)) continue;
+        const cssName = tokenKeyToCssName(group, key);
+        vars.push(`--de-${cssName}: ${val.$value}`);
+      }
+    }
+    const fontFamily = getFontFamily(t);
+    vars.push(`--de-font-primary: '${fontFamily}', system-ui, sans-serif`);
+    return vars.join('; ');
   }
 
   onMount(() => {
@@ -105,9 +133,8 @@
         const body = await res.json().catch(() => ({ message: res.statusText }));
         throw new Error(body.message ?? 'Failed to load tokens');
       }
-      const t: TokenSet = await res.json();
-      tokens = t;
-      fontInput = t.font;
+      tokens = await res.json();
+      fontInput = getFontFamily(tokens);
     } catch (e) {
       loadError = String((e as Error).message);
     }
@@ -115,28 +142,20 @@
 
   function scheduleSave() {
     if (saveTimer !== null) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => { void flushSave(); }, 250);
+    saveTimer = setTimeout(() => { void flushSave(); }, 500);
   }
 
   async function flushSave() {
     if (!tokens) return;
     if (saveTimer !== null) { clearTimeout(saveTimer); saveTimer = null; }
     statusKind = 'saving';
-    const snap = $state.snapshot(tokens) as TokenSet;
-    const payload = {
-      mode,
-      colors: snap[mode],
-      font: snap.font,
-      fontImport: pendingFontImport,
-    };
     try {
       const res = await fetch('/__design/api/tokens', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify($state.snapshot(tokens)),
       });
       const body = await res.json();
-      // Adopt server-canonical tokens if available, even on partial failure (207).
       if (body.tokens) tokens = body.tokens;
       if (!res.ok || !body.ok) throw new Error(body.message ?? `HTTP ${res.status}`);
       saveError = null;
@@ -149,32 +168,37 @@
       saveError = String((e as Error).message);
       statusKind = 'idle';
     }
-    pendingFontImport = undefined;
   }
 
-  function onColorChange(key: ColorKey, value: string) {
-    if (!tokens) return;
-    tokens[mode][key] = value;
+  function onTokenChange(group: string, key: string, value: string) {
+    if (!tokens || !tokens[group]) return;
+    (tokens[group][key] as TokenValue) = { $value: value };
     scheduleSave();
-  }
-
-  function onColorBlur() {
-    void flushSave();
   }
 
   function onFontInput(v: string) {
     fontInput = v;
-    if (tokens) tokens.font = v;
     suggestionsOpen = true;
   }
 
   function onFontPick(f: FontEntry) {
     if (!tokens) return;
     fontInput = f.family;
-    tokens.font = f.family;
-    pendingFontImport = { name: f.family, weights: f.weights, axisRange: f.axisRange };
+    updateFontToken(f.family);
     suggestionsOpen = false;
     void flushSave();
+  }
+
+  function updateFontToken(name: string) {
+    if (!tokens) return;
+    if (!tokens.font) tokens.font = { $type: 'fontFamily' };
+    const formatted = `'${name}', system-ui, -apple-system, BlinkMacSystemFont, sans-serif`;
+    const firstKey = Object.keys(tokens.font).find(k => k !== '$type');
+    if (firstKey) {
+      (tokens.font[firstKey] as TokenValue) = { $value: formatted };
+    } else {
+      (tokens.font as any).primary = { $value: formatted };
+    }
   }
 
   function onFontFocus() {
@@ -195,14 +219,7 @@
 
   function onFontBlur() {
     if (!tokens) return;
-    const match = fontEntries.find((f) => f.family.toLowerCase() === fontInput.toLowerCase());
-    if (match) {
-      tokens.font = match.family;
-      pendingFontImport = { name: match.family, weights: match.weights, axisRange: match.axisRange };
-    } else {
-      tokens.font = fontInput;
-      pendingFontImport = null;
-    }
+    updateFontToken(fontInput);
     if (suggestionsHideTimer !== null) clearTimeout(suggestionsHideTimer);
     suggestionsHideTimer = setTimeout(() => { suggestionsOpen = false; }, 150);
     void flushSave();
@@ -235,10 +252,6 @@
     return catalogPromise;
   }
 
-  function onModeToggle(m: Mode) {
-    mode = m;
-  }
-
   function copyCss() {
     if (!browser) return;
     void navigator.clipboard.writeText(cssOutput);
@@ -258,14 +271,14 @@
   <div class="de-page">
     <h1 class="de-title">Design Engine Settings</h1>
     <div class="de-error-box">
-      <p><strong>Could not load theme.css</strong></p>
+      <p><strong>Could not load tokens.json</strong></p>
       <p>{loadError}</p>
     </div>
   </div>
 {:else if !tokens}
   <div class="de-loading">Loading…</div>
 {:else}
-  <div class="de-page-root" style={styleVars(tokens, mode)}>
+  <div class="de-page-root" style={styleVars(tokens)}>
     <div class="de-page">
       <header class="de-header">
         <div>
@@ -284,37 +297,41 @@
               <button type="button" class="de-retry" onclick={retrySave}>Retry</button>
             </span>
           {/if}
-          <div class="de-mode-toggle">
-            <button type="button" class:active={mode === 'light'} onclick={() => onModeToggle('light')}>Light</button>
-            <button type="button" class:active={mode === 'dark'} onclick={() => onModeToggle('dark')}>Dark</button>
-          </div>
         </div>
       </header>
 
-      <div class="de-card">
-        <h2>Colors ({mode} mode)</h2>
-        {#each MANAGED_COLOR_KEYS as key (key)}
-          <div class="de-color-row">
-            <label for="de-color-{key}">--{key}</label>
-            <input
-              id="de-color-{key}"
-              type="color"
-              value={tokens[mode][key]}
-              oninput={(e) => onColorChange(key, e.currentTarget.value)}
-              onblur={onColorBlur}
-            />
-            <input
-              type="text"
-              value={tokens[mode][key]}
-              oninput={(e) => onColorChange(key, e.currentTarget.value)}
-              onblur={onColorBlur}
-            />
-          </div>
-        {/each}
-      </div>
+      {#each Object.entries(tokens) as [group, groupObj]}
+        <div class="de-card">
+          <h2>{group.charAt(0).toUpperCase() + group.slice(1)}</h2>
+          {#each Object.entries(groupObj) as [key, val]}
+            {#if key !== '$type' && val && typeof val === 'object' && '$value' in val}
+              {@const cssName = tokenKeyToCssName(group, key)}
+              {@const isColor = groupObj.$type === 'color' || isColorValue(val.$value)}
+              <div class="de-color-row">
+                <label>--{cssName}</label>
+                {#if isColor}
+                  <input
+                    type="color"
+                    value={val.$value}
+                    oninput={(e) => onTokenChange(group, key, e.currentTarget.value)}
+                    onblur={() => void flushSave()}
+                  />
+                {/if}
+                <input
+                  type="text"
+                  value={val.$value}
+                  style={isColor ? '' : 'flex: 1'}
+                  oninput={(e) => onTokenChange(group, key, e.currentTarget.value)}
+                  onblur={() => void flushSave()}
+                />
+              </div>
+            {/if}
+          {/each}
+        </div>
+      {/each}
 
       <div class="de-card">
-        <h2>Font (shared across modes)</h2>
+        <h2>Font</h2>
         <div class="de-relative">
           <input
             type="text"
@@ -453,24 +470,6 @@
     padding: 2px 8px;
     cursor: pointer;
     font: inherit;
-  }
-  .de-mode-toggle {
-    display: inline-flex;
-    border: 1px solid color-mix(in oklab, var(--de-foreground) 20%, transparent);
-    border-radius: 6px;
-    overflow: hidden;
-  }
-  .de-mode-toggle button {
-    padding: 6px 12px;
-    font-size: 13px;
-    background: transparent;
-    color: inherit;
-    border: none;
-    cursor: pointer;
-  }
-  .de-mode-toggle button.active {
-    background: var(--de-foreground);
-    color: var(--de-background);
   }
   .de-card {
     background: var(--de-card);
