@@ -172,15 +172,15 @@ Pick a skin:
 8. bring-your-own (skip — no skin applied)
 ```
 
-For options 1–5: read the bundled skin from `${CLAUDE_PLUGIN_ROOT}/data/skins/<name>.json`.
+For options 1–5: read the bundled DESIGN.md from `${CLAUDE_PLUGIN_ROOT}/data/design-systems/<slug>/DESIGN.md`.
 
 For option 6: trigger the 4-source lookup (the same lookup `/design-skin` uses):
-1. Project cache: `.design-rules/skins/<name>.json`
-2. User cache: `~/.design-rules/skins/<name>.json`
-3. Plugin bundled: `${CLAUDE_PLUGIN_ROOT}/data/skins/<name>.json`
-4. Remote fetch: `https://raw.githubusercontent.com/VoltAgent/awesome-design-md/main/design-md/<name>/DESIGN.md` (use WebFetch, parse the design-md format into a skin.json)
+1. Project cache: `.design-rules/design-systems/<slug>/DESIGN.md`
+2. User cache: `~/.design-rules/design-systems/<slug>/DESIGN.md`
+3. Plugin bundled: `${CLAUDE_PLUGIN_ROOT}/data/design-systems/<slug>/DESIGN.md`
+4. Remote fetch: `https://raw.githubusercontent.com/VoltAgent/awesome-design-md/main/design-md/<slug>/DESIGN.md` (use WebFetch)
 
-If the remote fetch is used, you MUST cache the result to `.design-rules/skins/<name>.json` in Step 7.
+If the remote fetch is used, you MUST cache the result to `.design-rules/design-systems/<slug>/DESIGN.md` in Step 7.
 
 For option 7: only valid if Step 2 detected an existing palette. Set the active skin to a custom skin built from extracted tokens.
 
@@ -643,7 +643,7 @@ For each candidate path, **byte-compare against canonical content** before auto-
 - Be defensive about file paths: always use absolute paths or paths anchored at the project root. The user may not be in the repo root.
 - Respect existing files: never silently overwrite. The retrofit logic in Step 2 is the only place where palette overwriting is explicitly user-approved.
 - If anything fails mid-write (e.g., adapter manifest missing), stop, report what was written, and tell the user how to clean up.
-- The `${CLAUDE_PLUGIN_ROOT}` variable resolves at runtime to the design-engine plugin's install directory. Use it for all reads from `adapters/`, `data/skins/`, `data/recipes/`, `data/tokens/`.
+- The `${CLAUDE_PLUGIN_ROOT}` variable resolves at runtime to the design-engine plugin's install directory. Use it for all reads from `adapters/`, `data/design-systems/`, `data/recipes/`.
 
 - In derive mode, use `parseThemeCss()` from `adapters/react-shadcn/templates/theme-css-parse.ts` (or the adapter-specific copy) to reverse-parse the existing theme CSS into tokens. Then use `emitDesignMdSkeleton()` from `adapters/react-shadcn/templates/design-md-emit.ts` to generate the DESIGN.md skeleton.
 - In scratch mode, use `parseDesignMd()` from `adapters/react-shadcn/templates/design-md-parse.ts` to derive tokens.json from the chosen DESIGN.md.

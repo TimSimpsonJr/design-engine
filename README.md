@@ -104,7 +104,7 @@ See `docs/plans/2026-05-04-design-engine-plugin-design.md` for the full architec
 
 This plugin adapts content from:
 
-- **[bitjaru/styleseed](https://github.com/bitjaru/styleseed)** (MIT) — original design system this plugin is based on. Components in `adapters/react-shadcn/`, design rules in `skills/`, bundled skins in `data/skins/`, generator/audit workflows in `commands/`.
+- **[bitjaru/styleseed](https://github.com/bitjaru/styleseed)** (MIT) — original design system this plugin is based on. Components in `adapters/react-shadcn/`, design rules in `skills/`, bundled design systems in `data/design-systems/`, generator/audit workflows in `commands/`.
 - **[Google Stitch](https://stitch.withgoogle.com/docs/design-md/overview/)** — DESIGN.md format inventor
 - **[VoltAgent/awesome-design-md](https://github.com/VoltAgent/awesome-design-md)** — community brand palette catalog used by `/design-skin`
 

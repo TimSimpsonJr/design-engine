@@ -79,7 +79,7 @@ If Source 4 succeeds:
 Don't apply anything. Print a "skin not found" report:
 
 1. List design systems available locally (project + user global + bundled), each on its own line, grouped by source. Use Glob to enumerate `**/DESIGN.md` under `.design-rules/design-systems/`, `~/.design-rules/design-systems/`, and `${CLAUDE_PLUGIN_ROOT}/data/design-systems/`. Extract the slug from the parent directory name.
-2. Also check for legacy JSON skins: `.design-rules/skins/*.json`, `~/.design-rules/skins/*.json`, `${CLAUDE_PLUGIN_ROOT}/data/skins/*.json`. If any exist, list them with a note: `(legacy JSON — will be auto-migrated on first use)`.
+2. Also check for legacy JSON skins: `.design-rules/skins/*.json`, `~/.design-rules/skins/*.json`. If any exist, list them with a note: `(legacy JSON — will be auto-migrated on first use)`.
 3. If `${CLAUDE_PLUGIN_ROOT}/data/awesome-design-md-index.json` exists, add a line: "Plus N brands available from awesome-design-md (e.g., airbnb, claude, figma, ...) — run `/design-skin list` for the full catalog."
 4. Run a fuzzy-match check: if any locally-available name has a small edit distance from the requested name (e.g., `airbnnb` vs `airbnb`, or substring match), suggest it: "Did you mean `airbnb`?"
 
@@ -235,7 +235,6 @@ Use Glob for each:
 Also check for legacy JSON skins (these will be auto-migrated on first use):
 - Project: `.design-rules/skins/*.json`
 - User global: `~/.design-rules/skins/*.json`
-- Bundled: `${CLAUDE_PLUGIN_ROOT}/data/skins/*.json`
 
 Read `${CLAUDE_PLUGIN_ROOT}/data/awesome-design-md-index.json` if it exists.
 

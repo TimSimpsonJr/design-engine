@@ -741,15 +741,9 @@ sprinkled across components are a maintenance trap.
 
 ## Token Source Files (framework-agnostic)
 
-The token JSON files ship in the design-engine plugin at `data/tokens/`. Adapter-specific implementations of these tokens (CSS variables, Tailwind theme directives, etc.) are written by `/design-init` to the user's project.
+Tokens are stored per-project in `tokens.json` (W3C Design Tokens format) at the project root. This file is derived from `DESIGN.md` by `/design-init` and serves as the canonical token source. Adapter-specific theme files (CSS variables, Tailwind theme directives, etc.) are derived from `tokens.json`.
 
-JSON token files are used as the source for extending to other platforms like native apps or Figma variable generation:
-- `data/tokens/colors.json`
-- `data/tokens/typography.json`
-- `data/tokens/spacing.json`
-- `data/tokens/radii.json`
-- `data/tokens/shadows.json`
-- `data/tokens/motion.json`
+The W3C token structure groups tokens by type — `color`, `font`, `radius`, `shadow`, `spacing`, `motion` — with `$type` per group and `$value` per token leaf.
 
 ## Slash commands available
 
