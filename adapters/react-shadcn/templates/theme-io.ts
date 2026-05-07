@@ -507,15 +507,16 @@ export function readTokensFromCss(css: string): Tokens {
 /** Regex-extract --name: value pairs from :root, .dark, @theme blocks. */
 function extractAllVarDeclarations(css: string): Array<{ name: string; value: string }> {
   const pairs: Array<{ name: string; value: string }> = [];
+  const seen = new Set<string>();
 
   // Find all block bodies we care about: :root, .dark, @theme, @theme inline
-  const blockRe = /(?::root|\.dark|@theme(?:\s+inline)?)\s*\{/g;
+  const blockRe = /(?::root|\.dark(?![\w-])|@theme(?:\s+inline)?)\s*\{/g;
   let match: RegExpExecArray | null;
 
   while ((match = blockRe.exec(css)) !== null) {
     const openIdx = css.indexOf('{', match.index);
     if (openIdx === -1) continue;
-    const closeIdx = findMatchingBraceForTokens(css, openIdx);
+    const closeIdx = findMatchingBrace(css, openIdx);
     if (closeIdx === -1) continue;
 
     const body = css.slice(openIdx + 1, closeIdx);
@@ -525,28 +526,14 @@ function extractAllVarDeclarations(css: string): Array<{ name: string; value: st
     while ((declMatch = declRe.exec(body)) !== null) {
       const name = declMatch[1].trim();
       const value = declMatch[2].trim();
-      // Skip if already seen (first occurrence wins)
-      if (!pairs.some(p => p.name === name)) {
+      if (!seen.has(name)) {
+        seen.add(name);
         pairs.push({ name, value });
       }
     }
   }
 
   return pairs;
-}
-
-function findMatchingBraceForTokens(css: string, openIdx: number): number {
-  let depth = 1;
-  let i = openIdx + 1;
-  while (i < css.length) {
-    if (css[i] === '{') depth++;
-    else if (css[i] === '}') {
-      depth--;
-      if (depth === 0) return i;
-    }
-    i++;
-  }
-  return -1;
 }
 
 // Maps group names back to CSS var name prefixes (reverse of classifyVar)
@@ -632,7 +619,7 @@ function surgicalReplace(
   }
 
   const openIdx = css.indexOf('{', rootMatch.index);
-  const closeIdx = findMatchingBraceForTokens(css, openIdx);
+  const closeIdx = findMatchingBrace(css, openIdx);
   if (closeIdx === -1) {
     // Malformed CSS -- fall back to prepend
     const lines = vars.map(({ name, value }) => `  --${name}: ${value};`);
@@ -643,7 +630,7 @@ function surgicalReplace(
   const remaining = new Map(vars.map(v => [v.name, v.value]));
 
   // Replace existing declarations in-place (collect positions first)
-  const declRe = /--([\w-]+)\s*:\s*([^;]+);/g;
+  const declRe = /--([a-z][a-z0-9-]*)\s*:\s*([^;]+);/gi;
   const replacements: Array<{ start: number; end: number; name: string }> = [];
   let declMatch: RegExpExecArray | null;
   while ((declMatch = declRe.exec(body)) !== null) {
