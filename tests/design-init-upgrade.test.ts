@@ -10,8 +10,9 @@ import { runDesignInitUpgrade } from '../adapters/react-shadcn/templates/upgrade
 const here = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = path.resolve(here, 'fixtures', 'old-project');
 
-test('upgrade produces DESIGN.md, tokens.json, register.md, and bumps schemaVersion', async () => {
+test('upgrade produces DESIGN.md, tokens.json, register.md, and bumps schemaVersion', async (t) => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'upgrade-test-'));
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
   fs.cpSync(FIXTURE, tmpDir, { recursive: true });
 
   await runDesignInitUpgrade(tmpDir);
@@ -22,7 +23,7 @@ test('upgrade produces DESIGN.md, tokens.json, register.md, and bumps schemaVers
 
   const config = JSON.parse(fs.readFileSync(path.join(tmpDir, '.design-rules/config.json'), 'utf8'));
   assert.equal(config.schemaVersion, 2);
-  assert.ok(config.themeFile, 'themeFile set in config');
+  assert.match(config.themeFile, /globals\.css$/);
 
   const tokens = JSON.parse(fs.readFileSync(path.join(tmpDir, 'tokens.json'), 'utf8'));
   assert.equal(tokens.color?.brand?.$value, '#533afd');
@@ -33,12 +34,11 @@ test('upgrade produces DESIGN.md, tokens.json, register.md, and bumps schemaVers
 
   const globals = fs.readFileSync(path.join(tmpDir, 'src/app/globals.css'), 'utf8');
   assert.match(globals, /--user-custom:\s*99px/);
-
-  fs.rmSync(tmpDir, { recursive: true, force: true });
 });
 
-test('upgrade detects user-customized values diverging from bundled skin', async () => {
+test('upgrade detects user-customized values diverging from bundled skin', async (t) => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'upgrade-test-'));
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
   fs.cpSync(FIXTURE, tmpDir, { recursive: true });
 
   const customGlobals = fs.readFileSync(path.join(tmpDir, 'src/app/globals.css'), 'utf8')
@@ -50,7 +50,5 @@ test('upgrade detects user-customized values diverging from bundled skin', async
   const tokens = JSON.parse(fs.readFileSync(path.join(tmpDir, 'tokens.json'), 'utf8'));
   assert.equal(tokens.color?.brand?.$value, '#ff0000');
 
-  assert.ok(result.warnings?.some((w: string) => w.includes('customized') || w.includes('diverge')));
-
-  fs.rmSync(tmpDir, { recursive: true, force: true });
+  assert.ok(result.warnings.some((w: string) => w.includes('customized') || w.includes('diverge')));
 });

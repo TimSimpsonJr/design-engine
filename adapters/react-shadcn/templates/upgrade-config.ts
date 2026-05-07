@@ -78,8 +78,6 @@ function detectThemeFile(projectRoot: string): string | null {
 
 function resolvePluginRoot(explicit?: string): string {
   if (explicit) return explicit;
-  // Walk up from this file's directory to find the repo root
-  // (the dir containing data/design-systems/)
   const thisDir = path.dirname(fileURLToPath(import.meta.url));
   let dir = thisDir;
   for (let i = 0; i < 10; i++) {
@@ -90,7 +88,9 @@ function resolvePluginRoot(explicit?: string): string {
     if (parent === dir) break;
     dir = parent;
   }
-  return thisDir;
+  throw new Error(
+    `Could not resolve plugin root (looked for data/design-systems/ up to 10 levels from ${thisDir}). Pass pluginRoot explicitly.`
+  );
 }
 
 // ── Token merge ────────────────────────────────────────────────────
