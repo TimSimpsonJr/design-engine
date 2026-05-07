@@ -6,13 +6,13 @@
   },
   "metadata": {
     "description": "Stack-agnostic design system toolkit for Claude Code. Adapted from bitjaru/styleseed (MIT).",
-    "version": "0.1.0"
+    "version": "0.3.0"
   },
   "plugins": [
     {
       "name": "design-engine",
       "source": "./",
-      "description": "3 skills + 14 commands + 3 audit agents + 6 stack adapters (React+shadcn, Astro, SvelteKit, Obsidian, plain CSS). Bundled skins, recipes, and tokens. Skin fetch from VoltAgent/awesome-design-md."
+      "description": "3 skills + 15 commands + 4 audit agents + 6 stack adapters (React+shadcn, Astro, SvelteKit, Obsidian, plain CSS). Bundled skins, recipes, and tokens. Skin fetch from VoltAgent/awesome-design-md."
     }
   ]
 }
