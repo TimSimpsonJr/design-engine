@@ -7,6 +7,8 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Task
 
 # /design-recipe — Recipe Extractor
 
+> **Active design system:** if `<project-root>/DESIGN.md` exists, read it for narrative context. The "Visual Theme & Atmosphere" and "Do's and Don'ts" sections are particularly relevant to generation tone.
+
 You operate on a URL to produce a recipe JSON in the user's project. v1 has one subcommand: `extract`. Future subcommands (`list`, `delete`, `show`) are not implemented.
 
 ## Step 0: Parse arguments

@@ -1,11 +1,14 @@
 ---
 name: composition-recipes
 description: Use when scaffolding a new page, section structure, or screen layout — "scaffold a dashboard page", "what's the structure for a fintech screen", "lay out a new analytics page", new-page generation tasks. Provides 5 page composition recipes (SaaS, e-commerce, fintech, social, productivity) with section sequences, KPI variation rules, and visual rhythm principles. Loads when a recipe choice needs to be made or when /design-page runs. Do not use for component-level work (use design-engine instead) or non-UI tasks.
+od.craft.requires:
+  - anti-ai-slop
+  - typography
 ---
 
 > **Active configuration:** Check `.design-rules/config.json` in the current project for active recipe. If `/design-page` has a `--recipe=<name>` flag, that overrides the project default.
 >
-> **Layered usage:** This skill provides recipes (page-level structural templates). The broader `design-engine` skill provides component-level rules. The `design-language` skill provides the full 69-rule mobile dashboard reference. Use this skill when scaffolding the *shape* of a page; use the others when working on individual sections or components within it.
+> **Layered usage:** This skill provides recipes (page-level structural templates). The broader `design-engine` skill provides component-level rules. The `mobile-dashboard` skill provides the dashboard-specialty rules (page composition grammar, KPI variation, chart styling, section taxonomy). Use this skill when scaffolding the *shape* of a page; use the others when working on individual sections or components within it.
 
 # Page Composition Recipes
 

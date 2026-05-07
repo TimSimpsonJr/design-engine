@@ -1,0 +1,6 @@
+{
+  "skin": "stripe",
+  "adapter": "react-shadcn",
+  "recipe": "fintech",
+  "settingsPage": true
+}

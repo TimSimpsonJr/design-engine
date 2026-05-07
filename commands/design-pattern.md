@@ -7,6 +7,8 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash
 
 # /design-pattern — Scaffold a Composed Pattern
 
+> **Active design system:** if `<project-root>/DESIGN.md` exists, read it for narrative context. The "Visual Theme & Atmosphere" and "Do's and Don'ts" sections are particularly relevant to generation tone.
+
 You are generating a new pattern file (a composed UI block, not a primitive) in the user's project. Patterns combine multiple primitives into a reusable layout — HeroCard, ChartCard, ListItem, KpiGrid, BriefingCarousel are typical examples.
 
 ## Step 0: Parse arguments

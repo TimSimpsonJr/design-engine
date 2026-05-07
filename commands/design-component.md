@@ -7,6 +7,8 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash
 
 # /design-component — Scaffold a UI Primitive
 
+> **Active design system:** if `<project-root>/DESIGN.md` exists, read it for narrative context. The "Visual Theme & Atmosphere" and "Do's and Don'ts" sections are particularly relevant to generation tone.
+
 You are generating a new primitive component (a low-level reusable unit — Button, Card, Badge, Input — not a composed pattern). Patterns are for `/design-pattern`; this command is for the building blocks underneath.
 
 ## Step 0: Parse arguments

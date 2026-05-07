@@ -1,0 +1,33 @@
+@theme {
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-700: #334155;
+  --color-slate-900: #0f172a;
+
+  --color-brand: oklch(0.63 0.26 29);
+  --color-brand-light: oklch(0.75 0.18 29);
+  --color-brand-dark: oklch(0.45 0.28 29);
+
+  --color-success: #22c55e;
+  --color-warning: #eab308;
+  --color-error: #ef4444;
+
+  --font-display: 'Cal Sans', sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+
+  --radius-sm: 0.25rem;
+  --radius-default: 0.5rem;
+  --radius-lg: 1rem;
+  --radius-full: 9999px;
+
+  --spacing-page: 2rem;
+  --spacing-section: 4rem;
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.12);
+  --shadow-elevated: 0 10px 25px rgba(0, 0, 0, 0.15);
+
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
+}

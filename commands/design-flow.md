@@ -7,6 +7,8 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash
 
 # /design-flow — UX Flow Designer
 
+> **Active design system:** if `<project-root>/DESIGN.md` exists, read it for narrative context. The "Visual Theme & Atmosphere" and "Do's and Don'ts" sections are particularly relevant to generation tone.
+
 Design a user flow: **$0**
 Description: $ARGUMENTS
 

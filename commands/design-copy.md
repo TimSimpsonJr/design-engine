@@ -7,6 +7,8 @@ allowed-tools: Read, Grep, Glob
 
 # /design-copy — UX Microcopy Generator
 
+> **Active design system:** if `<project-root>/DESIGN.md` exists, read it for narrative context. The "Visual Theme & Atmosphere" and "Do's and Don'ts" sections are particularly relevant to generation tone.
+
 Context: **$0**
 Description: $ARGUMENTS
 

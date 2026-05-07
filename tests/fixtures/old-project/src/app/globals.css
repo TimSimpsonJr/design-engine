@@ -1,0 +1,14 @@
+:root {
+  --brand: #533afd;
+  --primary: #061b31;
+  --background: #ffffff;
+  --foreground: #2A2A2A;
+  --user-custom: 99px;
+  --font-primary: 'Inter', system-ui, sans-serif;
+}
+
+.dark {
+  --brand: #ffffff;
+  --primary: #ededed;
+  --background: #0a0a0a;
+}

@@ -31,7 +31,23 @@ No design system in this project — run /design-init first.
 
 Stop.
 
-## Step 3: Run pattern checks
+## Step 3: Load tokens.json
+
+Build the canonical token value set for enforcement:
+
+1. **Locate tokens.json.** Check `<project-root>/tokens.json` first (active project tokens). If not found, fall back to `${CLAUDE_PLUGIN_ROOT}/data/tokens.json` (bundled defaults). If neither exists, skip token-aware checks and warn: `⚠ No tokens.json found — token enforcement disabled. Hardcoded-value checks will still flag, but cannot suggest specific token replacements.`
+
+2. **Parse the W3C format.** Walk the JSON tree recursively. For each leaf with a `$value` key, record:
+   - The **token path** as a CSS variable name: e.g., `color.brand.primary` → `--color-brand-primary`.
+   - The **resolved value**: the `$value` string (e.g., `"#721FE5"`, `"14px"`, `"oklch(0.646 0.222 41.116)"`).
+   - The **token type**: inherited from the nearest ancestor's `$type` field (e.g., `"color"`, `"dimension"`, `"shadow"`).
+
+3. **Build lookup sets by type:**
+   - `colorValues` — all `$type: "color"` token values, normalized to lowercase hex where possible. For `oklch(...)` values, keep as-is (used for proximity matching).
+   - `dimensionValues` — all `$type: "dimension"` token values (spacing, radii, font sizes).
+   - `shadowValues` — all `$type: "shadow"` token values (serialized to `offsetX offsetY blur spread color` form for comparison).
+
+## Step 4: Run pattern checks
 
 For each pattern below, run a Grep against `<path>`. For each match, record `file:line` and the violation type. After all patterns run, output a consolidated report.
 
@@ -76,16 +92,21 @@ grep -L 'data-slot=' <file>  # report files lacking data-slot
 Severity: 🟡 WARN
 Fix: add `data-slot="component-name"` to the component's root element.
 
-### Pattern 5 — Hardcoded hex on non-status
+### Pattern 5 — Hardcoded hex not in tokens.json
 
 Grep pattern: `#[0-9a-fA-F]{6}\b` and `#[0-9a-fA-F]{3}\b`
 
 For each match:
 
-- Skip if the file path matches `theme.css`, `tokens.json`, `*.skin.json`, or any file under `skins/`.
+- Skip if the file path matches `theme.css`, `tokens.json`, `*.skin.json`, `DESIGN.md`, or any file under `skins/` or `design-systems/`.
 - Skip if the surrounding context is a CSS variable definition (`--*: #...`).
-- Skip status colors that match common error/warning/success hexes (the skin defines these, but inline use elsewhere is still a flag — surface them, let the user judge).
-- Otherwise: severity 🔴 FAIL, fix: use a semantic token (`--brand`, `--text-primary`, etc.).
+- **Token match check (requires tokens.json loaded in Step 3):**
+  1. Normalize the matched hex to lowercase 6-digit form (e.g., `#abc` → `#aabbcc`).
+  2. Look up the normalized value in `colorValues`.
+  3. If an exact match exists, the value is a known token — still flag as 🟡 WARN with the suggestion to use the token variable instead of the raw hex. Example: `#721FE5 matches --color-brand-primary — use var(--color-brand-primary) instead`.
+  4. If no exact match, check oklch proximity: for each oklch token value in `colorValues`, convert both the matched hex and the oklch value to oklch space and compare. If the perceptual distance (Euclidean in oklch L,C,h space with h converted to radians) is < 0.05, suggest the closest token as a near-match. Example: `#7320E4 is near --color-brand-primary (#721FE5) — use var(--color-brand-primary)`.
+  5. If no match and no near-match: severity 🔴 FAIL. The value is not in the token set at all. Fix: `add to tokens.json or use an existing semantic token`.
+- **Fallback (no tokens.json):** severity 🔴 FAIL, fix: use a semantic token (`--brand`, `--text-primary`, etc.).
 
 ### Pattern 6 — Inline `style={{`
 
@@ -129,19 +150,53 @@ Grep pattern: `\bml-\d|\bmr-\d|\bpl-\d|\bpr-\d`
 Severity: 🟡 WARN
 Fix: Use logical properties (`ms-N`, `me-N`, `ps-N`, `pe-N`).
 
-## Step 4: Output report
+### Pattern 11 — Hardcoded dimensions not in tokens.json
+
+**Requires tokens.json loaded in Step 3.** Skip this pattern if tokens.json was not found.
+
+Grep pattern: `\b\d+px\b` in CSS files (property values, not selectors).
+
+For each match:
+
+- Skip if the file path matches `theme.css`, `tokens.json`, `DESIGN.md`, or any file under `skins/` or `design-systems/`.
+- Skip if the value appears inside a CSS variable definition (`--*: Npx`).
+- Skip `0px` (zero is always valid).
+- Look up the matched value (e.g., `"14px"`) in `dimensionValues`.
+- If an exact match exists: 🟡 WARN — suggest the corresponding token variable. Example: `14px matches --typography-size-base — use var(--typography-size-base)`.
+- If no match: 🔴 FAIL — `14px is not in tokens.json. Add it or use an existing token`.
+- For spacing values, also suggest the closest token. Example: `15px is not a spacing token — closest are --spacing-2 (12px) and --spacing-3 (18px)`.
+
+### Pattern 12 — Shadow values not in tokens.json
+
+**Requires tokens.json loaded in Step 3.** Skip this pattern if tokens.json was not found.
+
+Grep pattern: `box-shadow:\s*[^;]+|shadow-\[[^\]]+\]`
+
+For each match:
+
+- Skip if the file path matches `theme.css`, `tokens.json`, or `DESIGN.md`.
+- Parse the shadow value into components (offsetX, offsetY, blur, spread, color).
+- Check if the rgba alpha exceeds 0.08 (existing Rule 3 shadow-opacity check — keep the existing Pattern behavior, but now also check token membership).
+- Look up the parsed shadow against `shadowValues`. If no token match: 🟡 WARN — suggest the closest shadow token. Example: `box-shadow: 0 2px 8px rgba(0,0,0,0.1) — use var(--shadow-elevated) instead`.
+
+## Step 5: Output report
 
 ```
 🔴 FAIL  <file>:<line>  Pure black: text-black → use text-text-primary (Rule 3)
 🔴 FAIL  <file>:<line>  Off-table font: text-[35px] → text-[36px]
-🔴 FAIL  <file>:<line>  Hardcoded hex: text-[#3C3C3C] → use semantic token
+🔴 FAIL  <file>:<line>  Hardcoded hex: #ff385c not in tokens.json → add to tokens.json or use semantic token
+🟡 WARN  <file>:<line>  Known token hex: #721FE5 → use var(--color-brand-primary)
 🟡 WARN  <file>:<line>  Wrong margin: mx-4 → mx-6
 🟡 WARN  <file>:<line>  Inline style → move to Tailwind/CSS variable
 🟡 WARN  <file>:<line>  Touch target: <button h-9> → add min-h-11
 🟡 WARN  <file>:<line>  Old syntax: w-4 h-4 → size-4
 🟡 WARN  <file>:<line>  Physical prop: ml-2 → ms-2
+🟡 WARN  <file>:<line>  Hardcoded dimension: 14px → use var(--typography-size-base)
+🔴 FAIL  <file>:<line>  Unknown dimension: 15px not in tokens.json
+🟡 WARN  <file>:<line>  Shadow not in tokens: → use var(--shadow-card)
 
 Total: <X> errors, <Y> warnings across <N> files.
+Tokens source: <path-to-tokens.json-used>
 ```
 
 If errors > 0, advise: `Run /design-review <path> for deep review with suggested fixes.`
@@ -150,3 +205,5 @@ If errors = 0 and warnings = 0, output: `🟢 PASS  No violations found.`
 ## Notes
 
 This command is intentionally fast and shallow. It catches obvious issues that a regex can find. It cannot reason about context (e.g., whether a hardcoded hex is acceptable inside a story file, or whether a small button is intentional in a dense table). For nuanced review use `/design-review`. For accessibility use `/design-a11y`. For UX use `/design-audit`.
+
+Token enforcement depends on `tokens.json` being present. If the project has no `tokens.json` (and the bundled default is unavailable), the command falls back to the pre-token behavior: flag all hardcoded values without token-specific suggestions. Run `/design-init` to generate a project-level `tokens.json` from the active DESIGN.md.

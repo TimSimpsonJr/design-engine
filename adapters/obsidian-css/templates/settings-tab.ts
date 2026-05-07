@@ -4,22 +4,38 @@
 // Drop this into your plugin's main.ts or a separate settings.ts file.
 // Register the tab in your plugin's onload() with:
 //   this.addSettingTab(new DesignEngineSettingsTab(this.app, this));
-//
-// References:
-// - Obsidian PluginSettingTab API: https://docs.obsidian.md/Plugins/Releasing/Plugin+settings
-// - design-engine token system: see design-engine skill
 
 import { App, PluginSettingTab, Setting, Plugin } from 'obsidian';
 
-interface DesignEngineSettings {
-  brand: string;
-  font: string;
-  // Add more tokens as needed
+type TokenValue = { $value: string };
+type TokenGroup = { $type?: string; [name: string]: TokenValue | string | undefined };
+type Tokens = { [group: string]: TokenGroup };
+
+const GROUP_TO_PREFIX: Record<string, string> = {
+  color: '', radius: 'radius', font: 'font',
+  shadow: 'shadow', spacing: 'spacing', motion: 'duration',
+};
+
+const COLOR_RE = /^#(?:[0-9a-f]{3,8})$/i;
+
+function tokenKeyToCssName(group: string, key: string): string {
+  const prefix = GROUP_TO_PREFIX[group];
+  if (prefix === undefined) return key;
+  if (prefix === '') return key;
+  if (key === 'default') return prefix;
+  return `${prefix}-${key}`;
 }
 
-const DEFAULT_SETTINGS: DesignEngineSettings = {
-  brand: '',  // empty = inherit Obsidian's --interactive-accent
-  font: 'Inter',
+function isColorValue(value: string): boolean {
+  return COLOR_RE.test(value);
+}
+
+export interface DesignEngineSettings {
+  tokens: Tokens;
+}
+
+export const DEFAULT_SETTINGS: DesignEngineSettings = {
+  tokens: {},
 };
 
 export class DesignEngineSettingsTab extends PluginSettingTab {
@@ -35,47 +51,45 @@ export class DesignEngineSettingsTab extends PluginSettingTab {
     containerEl.empty();
     containerEl.createEl('h2', { text: 'Design Engine Settings' });
 
-    new Setting(containerEl)
-      .setName('Brand color')
-      .setDesc('Override the active brand accent. Leave blank to inherit Obsidian\'s theme.')
-      .addText(text => text
-        .setPlaceholder('#635BFF or empty')
-        .setValue(this.plugin.settings.brand)
-        .onChange(async (value) => {
-          this.plugin.settings.brand = value;
-          await this.plugin.saveSettings();
-          this.applyBrand(value);
-        }));
+    const tokens = this.plugin.settings.tokens;
+    if (!tokens || Object.keys(tokens).length === 0) {
+      containerEl.createEl('p', {
+        text: 'No tokens found. Run /design-init to set up your design system.',
+      });
+      return;
+    }
 
-    new Setting(containerEl)
-      .setName('Font')
-      .setDesc('Font family for plugin UI.')
-      .addDropdown(dropdown => dropdown
-        .addOptions({
-          'Inter': 'Inter',
-          'Pretendard': 'Pretendard',
-          'Geist': 'Geist',
-          'DM Sans': 'DM Sans',
-          'system-ui': 'System default',
-        })
-        .setValue(this.plugin.settings.font)
-        .onChange(async (value) => {
-          this.plugin.settings.font = value;
-          await this.plugin.saveSettings();
-          this.applyFont(value);
-        }));
-  }
+    for (const [group, groupObj] of Object.entries(tokens)) {
+      containerEl.createEl('h3', {
+        text: group.charAt(0).toUpperCase() + group.slice(1),
+      });
 
-  private applyBrand(color: string) {
-    const root = document.querySelector(':root') as HTMLElement;
-    if (color) {
-      root.style.setProperty('--de-brand', color);
-    } else {
-      root.style.removeProperty('--de-brand');
+      for (const [key, val] of Object.entries(groupObj)) {
+        if (key === '$type') continue;
+        if (!val || typeof val !== 'object' || !('$value' in val)) continue;
+        const tokenVal = val as TokenValue;
+        const cssName = tokenKeyToCssName(group, key);
+        const valueIsColor = groupObj.$type === 'color' || isColorValue(tokenVal.$value);
+
+        new Setting(containerEl)
+          .setName(`--${cssName}`)
+          .addText(text => text
+            .setValue(tokenVal.$value)
+            .onChange(async (value) => {
+              (this.plugin.settings.tokens[group][key] as TokenValue) = { $value: value };
+              await this.plugin.saveSettings();
+              this.applyToken(cssName, value);
+            }));
+      }
     }
   }
 
-  private applyFont(font: string) {
-    document.body.style.setProperty('--de-font-family', font);
+  private applyToken(cssName: string, value: string) {
+    const root = document.querySelector(':root') as HTMLElement;
+    if (value) {
+      root.style.setProperty(`--${cssName}`, value);
+    } else {
+      root.style.removeProperty(`--${cssName}`);
+    }
   }
 }

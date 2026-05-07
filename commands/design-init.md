@@ -27,21 +27,55 @@ Read `.design-rules/config.json` if it exists.
 - If marker's current `adapter` is `obsidian-css` → error: `Obsidian migration is not supported in v1. Run /design-init --reset instead.` Stop.
 - Otherwise → jump to the Migration Flow (M1) below. Skip Steps 1–8.
 
-**If marker is present and neither `--reset` nor `--migrate` was passed:**
+**If marker is present and `detectOldFormat(config) === true` (pre-schemaVersion-2):** jump to the Upgrade path section below. Skip Steps 1–8.
+
+**If marker is present and neither `--reset` nor `--migrate` was passed (and config is current schema):**
 - Display the current config to the user (adapter, skin, recipe, font, mode, settingsPage, createdAt)
 - Ask which path they want:
   - **A) Keep current** — abort the wizard, no changes
   - **B) Update specific fields** — they'll tell you which fields (skin, font, recipe, etc.) and you'll only re-prompt for those, then re-write the marker and any affected theme files
-  - **C) Full reset** — equivalent to `--reset`, proceed through every step from Step 1
+  - **C) Full reset** — equivalent to `--reset`, proceed through every step from Mode detection
   - **D) Migrate to a different adapter** — equivalent to `--migrate`, jump to the Migration Flow below
 - If A: print a confirmation and exit cleanly
 - If B: ask which fields, jump to the relevant steps, then to Step 7 (write artifacts) for only the changed pieces
-- If C: proceed to Step 1
+- If C: proceed to Mode detection
 - If D: jump to Migration Flow M1
 
-**If `--reset` was passed:** skip the prompt, proceed to Step 1.
+**If `--reset` was passed:** skip the prompt, proceed to Mode detection.
 
-**If marker is absent and `--migrate` was NOT passed:** proceed to Step 1.
+**If marker is absent and `--migrate` was NOT passed:** proceed to Mode detection.
+
+## Mode detection
+
+Run this before Step 1 (Adapter detection). Mode detection determines whether to derive tokens from an existing theme or start from scratch. Step 1 then determines which framework adapter to use — it checks some of the same signals (shadcn, Astro, SvelteKit) but for a different purpose.
+
+Detection priority:
+
+1. **shadcn**: `components.json` exists at project root → derive mode, themeFile = value of `components.json.tailwind.css`.
+2. **Tailwind v3**: `tailwind.config.{js,ts,cjs,mjs}` exists → derive mode, themeFile = first `*.css` referenced in the config's `content` glob (or fallback to `src/styles/globals.css` / `src/index.css` if found).
+3. **Tailwind v4 `@theme` directive in any `*.css`**: grep for `@theme {` or `@theme inline {` in `src/**/*.css`, `app/**/*.css` → derive mode, themeFile = the matching file.
+4. **Astro**: `astro.config.{mjs,ts,js}` exists → derive mode, themeFile = first `*.css` in `src/styles/`.
+5. **SvelteKit**: `svelte.config.{js,ts}` exists → derive mode, themeFile = `src/app.css` or `src/routes/+layout.svelte`-referenced CSS.
+6. Fallback: scratch mode (with confirmation prompt: "No existing theme detected. Initialize from scratch?").
+
+If derive mode: invoke `theme-css-parse.ts:parseThemeCss(<themeFile>)` to extract tokens, then `design-md-emit.ts:emitDesignMdSkeleton(tokens, { name, mode: 'full' })` to template-fill DESIGN.md skeleton (Sections 2/3/5/6 derived from extracted tokens; Sections 1/4/7/8/9 stubbed with TODO markers).
+
+If scratch mode: prompt user to pick from `data/design-systems/<slug>/DESIGN.md`. Stamp the chosen DESIGN.md, derive tokens.json from it, scaffold theme.css from tokens.json into the adapter's default location.
+
+After mode detection completes, proceed to Step 1 (Adapter detection).
+
+## Upgrade path (existing pre-schemaVersion-2 project)
+
+This is a self-contained flow triggered from Step 0 when `detectOldFormat(config) === true`. It adds DESIGN.md, tokens.json, and register.md to an already-initialized project without re-running the full wizard.
+
+1. Resolve active skin via existing 4-source lookup. Bundled cache now returns DESIGN.md.
+2. Stamp `<root>/DESIGN.md` from the resolved DESIGN.md.
+3. Derive tokens.json from DESIGN.md.
+4. Compare derived tokens.json against the existing theme.css; if values diverge (user customized), preserve theme.css values in tokens.json and emit a warning.
+5. Stamp `register.md` empty.
+6. Call `upgradeConfig(config, { themeFile })` and write back.
+
+After upgrade, print a summary of what was added (DESIGN.md, tokens.json, register.md, updated config.json) and stop. Do not continue to Step 1 — the project is already initialized.
 
 ## Step 1: Adapter detection
 
@@ -138,15 +172,15 @@ Pick a skin:
 8. bring-your-own (skip — no skin applied)
 ```
 
-For options 1–5: read the bundled skin from `${CLAUDE_PLUGIN_ROOT}/data/skins/<name>.json`.
+For options 1–5: read the bundled DESIGN.md from `${CLAUDE_PLUGIN_ROOT}/data/design-systems/<slug>/DESIGN.md`.
 
 For option 6: trigger the 4-source lookup (the same lookup `/design-skin` uses):
-1. Project cache: `.design-rules/skins/<name>.json`
-2. User cache: `~/.design-rules/skins/<name>.json`
-3. Plugin bundled: `${CLAUDE_PLUGIN_ROOT}/data/skins/<name>.json`
-4. Remote fetch: `https://raw.githubusercontent.com/VoltAgent/awesome-design-md/main/design-md/<name>/DESIGN.md` (use WebFetch, parse the design-md format into a skin.json)
+1. Project cache: `.design-rules/design-systems/<slug>/DESIGN.md`
+2. User cache: `~/.design-rules/design-systems/<slug>/DESIGN.md`
+3. Plugin bundled: `${CLAUDE_PLUGIN_ROOT}/data/design-systems/<slug>/DESIGN.md`
+4. Remote fetch: `https://raw.githubusercontent.com/VoltAgent/awesome-design-md/main/design-md/<slug>/DESIGN.md` (use WebFetch)
 
-If the remote fetch is used, you MUST cache the result to `.design-rules/skins/<name>.json` in Step 7.
+If the remote fetch is used, you MUST cache the result to `.design-rules/design-systems/<slug>/DESIGN.md` in Step 7.
 
 For option 7: only valid if Step 2 detected an existing palette. Set the active skin to a custom skin built from extracted tokens.
 
@@ -322,7 +356,39 @@ If the file exists, append a `# Design Engine Conventions` section (or replace i
 
 ### 7i. Skip `theme.css` in BYO mode
 
-In `mode == "retrofit-byo"`: do NOT write `theme.css`, `base.css`, or `fonts.css`. Only write the marker (`.design-rules/config.json`), `CLAUDE.md` block, and `.cursorrules`. The user keeps managing their own palette.
+In `mode == "retrofit-byo"`: do NOT write `theme.css`, `base.css`, or `fonts.css`. Only write the marker (`.design-rules/config.json`), `CLAUDE.md` block, `.cursorrules`, and the three schema files below (7j/7k/7l). The user keeps managing their own palette, but the design-system contract files are still written.
+
+### 7j. Write DESIGN.md
+
+- In derive mode: DESIGN.md was already generated from `emitDesignMdSkeleton` during mode detection. Write it at `<root>/DESIGN.md`.
+- In scratch mode: the chosen design-system's DESIGN.md was already selected. Copy it to `<root>/DESIGN.md`.
+
+### 7k. Write tokens.json
+
+Parse DESIGN.md using `design-md-parse.ts:parseDesignMd()` to extract tokens. Write `<root>/tokens.json` in W3C Design Tokens format.
+
+### 7l. Write register.md
+
+Write an empty 5-section template at `<root>/register.md`:
+
+```markdown
+# Visual Register: <name>
+
+## 1. Color Stance
+<!-- TODO: describe temperature, saturation behavior, accent rules, neutral character -->
+
+## 2. Spatial Logic
+<!-- TODO: describe density, breathing room, asymmetry tendencies, grid relationship -->
+
+## 3. Type Behavior
+<!-- TODO: describe weight contrast, scale jumps, tracking habits, italic/serif role -->
+
+## 4. Composition Moves
+<!-- TODO: describe focal restraint, repetition tolerance, hierarchy mechanisms, ornament posture -->
+
+## 5. Material Posture
+<!-- TODO: describe flatness vs. depth, texture, gloss/matte, photographic vs. illustrative -->
+```
 
 ## Step 8: Summary
 
@@ -344,6 +410,9 @@ Files written:
 - src/styles/{base,fonts,index}.css
 - CLAUDE.md (conventions block appended/created)
 - .cursorrules (only if adapter declares cursorRules: true)
+- DESIGN.md (from chosen design-system or generated skeleton)
+- tokens.json (derived from DESIGN.md)
+- register.md (empty 5-section template)
 
 Next steps:
 - /design-page <name> "<description>" — scaffold first page
@@ -406,7 +475,7 @@ Build the plan from these inputs:
 
 3. **Old build-config patches.** If `oldAdapter` is `react-shadcn`: scan `vite.config.ts` for `from './src/design-engine/vite-plugin-design-engine'` and `designEngine()` in plugins. If `oldAdapter` is `astro`: scan `astro.config.mjs` (or `.ts`/`.js`) for `from './src/design-engine/astro-integration-design-engine'` and `designEngine()` in integrations. If `oldAdapter` is `sveltekit`: no build-config patch to revert (SvelteKit auto-discovers routes; no config edit was made). Plan is to **print removal instructions in M7**, never auto-edit.
 
-4. **Token preservation.** If `mode != "retrofit-byo"`: try `parseTokens(<oldTargetPath>/theme.css)` (in-memory only — don't write yet). If parse fails or returns an empty managed-token set, abort here with: `theme.css unparseable — fix manually or run /design-init --reset`. Do not continue.
+4. **Token preservation.** If `mode != "retrofit-byo"`: read `<projectRoot>/tokens.json` (in-memory only — don't write yet). If the file is missing or JSON-invalid, abort here with: `tokens.json missing or invalid — fix manually or run /design-init --reset`. Do not continue. (`tokens.json` is the canonical token source; theme.css is derived from it.)
 
 5. **`settingsPage` field reset.** If old config has `settingsPage: true`, the field will be reset to `false` in M6. User re-runs `/design-settings-page` to regenerate UI for the new adapter.
 
@@ -426,7 +495,7 @@ Theme files:
   <oldTargetPath>theme.css → <newTargetPath>theme.css  [overwrite in place | write at new path]
 
 Tokens to preserve:
-  <count> :root tokens, <count> .dark tokens (font: <name>)
+  tokens.json: <count> groups, <total token count> tokens
 
 Auto-cleanup (delete after byte-compare):
   - <list of deterministic plugin files in toDelete>
@@ -451,7 +520,7 @@ Wait for explicit `y`. Anything else aborts cleanly.
 
 ### M3: Capture user-customized tokens
 
-Re-run `parseTokens(<oldTargetPath>/theme.css)` (the M2 parse was in-memory; reuse the result). Hold both `:root` and `.dark` token maps in memory.
+Read `<projectRoot>/tokens.json` (reuse the M2 parse result). Hold the full W3C token object in memory.
 
 Skip M3 entirely if `mode == "retrofit-byo"` — user manages their own theme.
 
@@ -460,10 +529,12 @@ Skip M3 entirely if `mode == "retrofit-byo"` — user manages their own theme.
 Reuse existing logic:
 - **Step 7a** — resolve adapter chain via `extends`.
 - **Step 7b** — copy theme files from chain into `newTargetPath`. Leaf adapter wins on filename collisions.
-- **Step 7c** — apply active skin (preserved from old config) to `:root` and `.dark` blocks.
-- **Step 7d** — apply active font (preserved from old config) to `fonts.css` + `--font-primary`.
 
-Then **overlay preserved tokens from M3** via `writeTokens()` against the just-written `<newTargetPath>/theme.css`. User customizations override skin defaults.
+Then **regenerate theme.css from tokens.json** via `writeTokensToCss(tokens, { existing: <newTargetPath>/theme.css })`. The preserved tokens from M3 are overlaid onto the new adapter's theme template, preserving user customizations.
+
+Update `config.json` field `themeFile` to `newTargetPath/theme.css` (relative to project root).
+
+`DESIGN.md`, `tokens.json`, and `.design-rules/register.md` stay at their project-root locations — they are adapter-agnostic and do not move during migration.
 
 Skip M4 entirely if `mode == "retrofit-byo"`.
 
@@ -479,7 +550,7 @@ Compute `toDelete = artifactSetFor(oldAdapter) ∩ existing-on-disk - artifactSe
 | Old theme files at old `targetPath` (when `targetPath` differs) | **Never auto-delete** — always manual-cleanup list |
 | Old build-config patches (`vite.config.ts` / `astro.config.mjs`) | Never auto-edit; print removal instructions in M7 |
 
-**Why old theme files are never auto-deleted:** `writeTokens()` only preserves user-added unmanaged CSS *in place*; it does not transfer that content to a freshly generated file at a new `targetPath`. Auto-deleting old `theme.css` would silently drop any user-added unmanaged variables or comments. The conservative move is to let the user review and delete manually.
+**Why old theme files are never auto-deleted:** `writeTokensToCss()` only preserves user-added unmanaged CSS *in place*; it does not transfer that content to a freshly generated file at a new `targetPath`. Auto-deleting old `theme.css` would silently drop any user-added unmanaged variables or comments. The conservative move is to let the user review and delete manually.
 
 If individual deletes fail (e.g., file permission), continue with remaining deletes, then halt-and-report at the end of M5 with the exact list of orphans. Do not roll back already-completed deletes.
 
@@ -488,6 +559,7 @@ If individual deletes fail (e.g., file permission), continue with remaining dele
 **`.design-rules/config.json`:**
 - `adapter`: new
 - `skin`, `recipe`, `font`, `mode`: preserved unchanged
+- `themeFile`: updated to `<newTargetPath>/theme.css` (relative to project root)
 - `settingsPage`: `false` (always reset; user re-runs `/design-settings-page` to regenerate UI for new adapter if desired)
 - `migratedAt`: current ISO 8601 timestamp (run `date -Iseconds` via Bash)
 - `migratedFrom`: old adapter name
@@ -571,7 +643,12 @@ For each candidate path, **byte-compare against canonical content** before auto-
 - Be defensive about file paths: always use absolute paths or paths anchored at the project root. The user may not be in the repo root.
 - Respect existing files: never silently overwrite. The retrofit logic in Step 2 is the only place where palette overwriting is explicitly user-approved.
 - If anything fails mid-write (e.g., adapter manifest missing), stop, report what was written, and tell the user how to clean up.
-- The `${CLAUDE_PLUGIN_ROOT}` variable resolves at runtime to the design-engine plugin's install directory. Use it for all reads from `adapters/`, `data/skins/`, `data/recipes/`, `data/tokens/`.
+- The `${CLAUDE_PLUGIN_ROOT}` variable resolves at runtime to the design-engine plugin's install directory. Use it for all reads from `adapters/`, `data/design-systems/`, `data/recipes/`.
+
+- In derive mode, use `parseThemeCss()` from `adapters/react-shadcn/templates/theme-css-parse.ts` (or the adapter-specific copy) to reverse-parse the existing theme CSS into tokens. Then use `emitDesignMdSkeleton()` from `adapters/react-shadcn/templates/design-md-emit.ts` to generate the DESIGN.md skeleton.
+- In scratch mode, use `parseDesignMd()` from `adapters/react-shadcn/templates/design-md-parse.ts` to derive tokens.json from the chosen DESIGN.md.
+- `register.md` is always stamped as an empty 5-section template. Population happens later via canvas-side extraction.
+- For the upgrade path, use `detectOldFormat()` and `upgradeConfig()` from `adapters/react-shadcn/templates/upgrade-config.ts`.
 
 ### Migration-specific notes
 
@@ -579,5 +656,6 @@ For each candidate path, **byte-compare against canonical content** before auto-
 - `--migrate` does NOT generate or modify settings-page artifacts beyond cleaning up old ones. The user runs `/design-settings-page` separately after migration to regenerate UI for the new adapter. Do NOT call `/design-settings-page` automatically.
 - `--migrate` does NOT auto-edit `vite.config.ts`, `astro.config.mjs`, or `svelte.config.js` to remove old plugin/integration entries. Always print the exact lines to remove and let the user delete them manually. Auto-add for the new adapter is `/design-settings-page`'s responsibility, not migration's.
 - The byte-compare in M5 reads the canonical template content from `${CLAUDE_PLUGIN_ROOT}/adapters/<oldAdapter>/templates/<filename>` and compares byte-for-byte against the file currently on disk. Use Read for both. Mismatches mean the user edited the file — surface in the manual-cleanup list with the exact note `kept — user-modified`.
-- Token preservation in M3/M4 reuses the helper at `${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/theme-io.ts` (or astro/sveltekit's copy — they're byte-identical). Don't reimplement the parser/writer.
+- Token preservation in M3/M4 reads `tokens.json` (canonical) and writes theme.css via `writeTokensToCss()` from `${CLAUDE_PLUGIN_ROOT}/adapters/react-shadcn/templates/theme-io.ts`. Don't reimplement the writer.
+- `DESIGN.md`, `tokens.json`, and `.design-rules/register.md` are adapter-agnostic project-root files. Migration does not move or rewrite them — only theme.css (derived from tokens.json) changes location when the adapter changes.
 - Migration preserves `mode` from the old config. If the old config had `mode: "retrofit-byo"`, skip M3 and M4 entirely — the user manages their own theme; don't write or parse theme files. Only update marker, conventions, and clean up old plugin-generated settings-page artifacts.
