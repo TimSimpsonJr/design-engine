@@ -409,3 +409,279 @@ export function buildGoogleFontsUrl(family: string, weights?: number[], axisRang
   else if (weights && weights.length) suffix = `:wght@${weights.join(';')}`;
   return `https://fonts.googleapis.com/css2?family=${familyParam}${suffix}&display=swap`;
 }
+
+// ---------------------------------------------------------------------------
+// W3C Design Tokens bridge: read CSS vars into grouped token structure,
+// write grouped tokens back to flat CSS vars.
+// Complements (does not replace) parseTokens / writeTokens above.
+// ---------------------------------------------------------------------------
+
+export type TokenValue = { $value: string };
+export type TokenGroup = {
+  $type?: string;
+  [name: string]: TokenValue | string | undefined;
+};
+export type Tokens = {
+  [group: string]: TokenGroup;
+};
+
+// Patterns for detecting value types
+const COLOR_HEX_RE = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+const COLOR_FUNC_RE = /^(?:oklch|oklab|hsl|hsla|rgb|rgba)\s*\(/i;
+const DIMENSION_RE = /^-?[\d.]+(?:px|rem|em|%)$/;
+const FONT_FAMILY_RE = /['"]/; // contains quotes -> likely font family
+const FONT_COMMA_RE = /,/;     // comma-separated -> likely font stack
+
+// Name-prefix grouping rules (order matters: more specific first)
+const PREFIX_GROUPS: Array<{ prefix: string; group: string }> = [
+  { prefix: 'font-', group: 'font' },
+  { prefix: 'radius-', group: 'radius' },
+  { prefix: 'shadow-', group: 'shadow' },
+  { prefix: 'spacing-', group: 'spacing' },
+  { prefix: 'duration-', group: 'motion' },
+];
+
+// Exact-match name -> group (for bare names like --radius with no suffix)
+const EXACT_GROUPS: Record<string, { group: string; key: string }> = {
+  'radius': { group: 'radius', key: 'default' },
+};
+
+function detectValueType(value: string): string {
+  if (COLOR_HEX_RE.test(value)) return 'color';
+  if (COLOR_FUNC_RE.test(value)) return 'color';
+  if (DIMENSION_RE.test(value)) return 'dimension';
+  if (FONT_FAMILY_RE.test(value) || FONT_COMMA_RE.test(value)) return 'fontFamily';
+  return 'other';
+}
+
+function classifyVar(name: string, value: string): { group: string; key: string; type: string } {
+  // Check exact name matches first (e.g., --radius -> radius.default)
+  const exact = EXACT_GROUPS[name];
+  if (exact) {
+    return { group: exact.group, key: exact.key, type: 'dimension' };
+  }
+
+  // Check prefix-based groups
+  for (const { prefix, group } of PREFIX_GROUPS) {
+    if (name.startsWith(prefix)) {
+      const suffix = name.slice(prefix.length);
+      const type = group === 'font' ? 'fontFamily' : group === 'motion' ? 'duration' : 'dimension';
+      return { group, key: suffix, type };
+    }
+  }
+
+  // Fall back to value-based type detection
+  const type = detectValueType(value);
+  if (type === 'color') return { group: 'color', key: name, type: 'color' };
+  if (type === 'fontFamily') return { group: 'font', key: name, type: 'fontFamily' };
+  if (type === 'dimension') return { group: 'dimension', key: name, type: 'dimension' };
+  return { group: 'other', key: name, type };
+}
+
+/**
+ * Extract all --name: value pairs from CSS blocks (:root, .dark,
+ * @theme, @theme inline), detect each value's type, and return a W3C-style
+ * grouped token object.
+ *
+ * Only reads :root (light) tokens currently. Dark-mode grouping can be
+ * added later by returning a { light: Tokens; dark: Tokens } wrapper.
+ */
+export function readTokensFromCss(css: string): Tokens {
+  const tokens: Tokens = {};
+
+  // Extract var declarations from supported blocks
+  const pairs = extractAllVarDeclarations(css);
+
+  for (const { name, value } of pairs) {
+    const { group, key, type } = classifyVar(name, value);
+
+    if (!tokens[group]) {
+      tokens[group] = { $type: type };
+    }
+    (tokens[group] as any)[key] = { $value: value };
+  }
+
+  return tokens;
+}
+
+/** Regex-extract --name: value pairs from :root, .dark, @theme blocks. */
+function extractAllVarDeclarations(css: string): Array<{ name: string; value: string }> {
+  const pairs: Array<{ name: string; value: string }> = [];
+
+  // Find all block bodies we care about: :root, .dark, @theme, @theme inline
+  const blockRe = /(?::root|\.dark|@theme(?:\s+inline)?)\s*\{/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = blockRe.exec(css)) !== null) {
+    const openIdx = css.indexOf('{', match.index);
+    if (openIdx === -1) continue;
+    const closeIdx = findMatchingBraceForTokens(css, openIdx);
+    if (closeIdx === -1) continue;
+
+    const body = css.slice(openIdx + 1, closeIdx);
+    // Extract --name: value; pairs from this body
+    const declRe = /--([a-z][a-z0-9-]*)\s*:\s*([^;]+);/gi;
+    let declMatch: RegExpExecArray | null;
+    while ((declMatch = declRe.exec(body)) !== null) {
+      const name = declMatch[1].trim();
+      const value = declMatch[2].trim();
+      // Skip if already seen (first occurrence wins)
+      if (!pairs.some(p => p.name === name)) {
+        pairs.push({ name, value });
+      }
+    }
+  }
+
+  return pairs;
+}
+
+function findMatchingBraceForTokens(css: string, openIdx: number): number {
+  let depth = 1;
+  let i = openIdx + 1;
+  while (i < css.length) {
+    if (css[i] === '{') depth++;
+    else if (css[i] === '}') {
+      depth--;
+      if (depth === 0) return i;
+    }
+    i++;
+  }
+  return -1;
+}
+
+// Maps group names back to CSS var name prefixes (reverse of classifyVar)
+const GROUP_TO_PREFIX: Record<string, string> = {
+  color: '',           // color tokens emit bare name: --brand, --background
+  radius: 'radius',   // radius.lg -> --radius-lg, radius.default -> --radius
+  font: 'font',       // font.sans -> --font-sans
+  shadow: 'shadow',   // shadow.sm -> --shadow-sm
+  spacing: 'spacing', // spacing.lg -> --spacing-lg
+  motion: 'duration', // motion.duration.fast -> --duration-fast (simplified)
+};
+
+function tokenKeyToCssName(group: string, key: string): string {
+  const prefix = GROUP_TO_PREFIX[group];
+
+  // No prefix mapping -> use key as-is (generic groups)
+  if (prefix === undefined) return key;
+
+  // Empty prefix -> bare name (color group)
+  if (prefix === '') return key;
+
+  // 'default' key -> bare prefix (e.g., radius.default -> --radius)
+  if (key === 'default') return prefix;
+
+  // Normal case: prefix-suffix (e.g., radius.lg -> radius-lg)
+  return `${prefix}-${key}`;
+}
+
+/**
+ * Write a W3C-style grouped token object back to CSS.
+ *
+ * If options.existing is provided, surgically replaces matching variable
+ * values in the existing CSS and appends new ones to the :root block.
+ * All non-managed declarations are preserved.
+ *
+ * If no existing CSS is provided, generates a fresh :root { ... } block.
+ */
+export function writeTokensToCss(tokens: Tokens, options?: { existing?: string }): string {
+  // Flatten tokens to --name: value pairs
+  const flatVars = flattenTokens(tokens);
+
+  if (!options?.existing) {
+    // Generate fresh CSS
+    const lines = flatVars.map(({ name, value }) => `  --${name}: ${value};`);
+    return `:root {\n${lines.join('\n')}\n}\n`;
+  }
+
+  // Surgical replacement in existing CSS
+  return surgicalReplace(options.existing, flatVars);
+}
+
+function flattenTokens(tokens: Tokens): Array<{ name: string; value: string }> {
+  const result: Array<{ name: string; value: string }> = [];
+
+  for (const [group, groupObj] of Object.entries(tokens)) {
+    for (const [key, tokenVal] of Object.entries(groupObj)) {
+      if (key === '$type') continue;
+      if (!tokenVal || typeof tokenVal !== 'object' || !('$value' in tokenVal)) continue;
+      const cssName = tokenKeyToCssName(group, key);
+      result.push({ name: cssName, value: (tokenVal as TokenValue).$value });
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Find the :root { ... } block in existing CSS, replace matching vars
+ * in-place, and append any new vars that don't already exist.
+ * Preserves all other declarations and CSS outside the :root block.
+ */
+function surgicalReplace(
+  css: string,
+  vars: Array<{ name: string; value: string }>,
+): string {
+  // Find :root block
+  const rootRe = /:root\s*\{/;
+  const rootMatch = rootRe.exec(css);
+  if (!rootMatch) {
+    // No :root block -- prepend a new one with our vars, keep existing CSS
+    const lines = vars.map(({ name, value }) => `  --${name}: ${value};`);
+    return `:root {\n${lines.join('\n')}\n}\n${css}`;
+  }
+
+  const openIdx = css.indexOf('{', rootMatch.index);
+  const closeIdx = findMatchingBraceForTokens(css, openIdx);
+  if (closeIdx === -1) {
+    // Malformed CSS -- fall back to prepend
+    const lines = vars.map(({ name, value }) => `  --${name}: ${value};`);
+    return `:root {\n${lines.join('\n')}\n}\n${css}`;
+  }
+
+  let body = css.slice(openIdx + 1, closeIdx);
+  const remaining = new Map(vars.map(v => [v.name, v.value]));
+
+  // Replace existing declarations in-place (collect positions first)
+  const declRe = /--([\w-]+)\s*:\s*([^;]+);/g;
+  const replacements: Array<{ start: number; end: number; name: string }> = [];
+  let declMatch: RegExpExecArray | null;
+  while ((declMatch = declRe.exec(body)) !== null) {
+    const declName = declMatch[1];
+    if (remaining.has(declName)) {
+      replacements.push({
+        start: declMatch.index,
+        end: declMatch.index + declMatch[0].length,
+        name: declName,
+      });
+    }
+  }
+
+  // Apply replacements from end to start to preserve offsets
+  for (let i = replacements.length - 1; i >= 0; i--) {
+    const r = replacements[i];
+    const newValue = remaining.get(r.name)!;
+    const newDecl = `--${r.name}: ${newValue};`;
+    body = body.slice(0, r.start) + newDecl + body.slice(r.end);
+    remaining.delete(r.name);
+  }
+
+  // Append any new vars that didn't exist in the original
+  if (remaining.size > 0) {
+    // Detect indentation from the body
+    const indentMatch = body.match(/\n(\s+)--/);
+    const indent = indentMatch ? indentMatch[1] : '  ';
+
+    const newLines = Array.from(remaining.entries())
+      .map(([name, value]) => `\n${indent}--${name}: ${value};`)
+      .join('');
+
+    // Insert before trailing whitespace/newline
+    const trailingMatch = body.match(/(\s*)$/);
+    const trailing = trailingMatch?.[1] ?? '';
+    const insertAt = body.length - trailing.length;
+    body = body.slice(0, insertAt) + newLines + body.slice(insertAt);
+  }
+
+  return css.slice(0, openIdx + 1) + body + css.slice(closeIdx);
+}
